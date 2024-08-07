@@ -5,6 +5,8 @@ use std::io::{self, Write};
 pub enum TokenType {
     LeftParen,
     RightParen,
+    LeftBrace,
+    RightBrace,
     EOF
 }
 
@@ -13,6 +15,8 @@ impl TokenType {
         match self {
             Self::LeftParen => "LEFT_PAREN".to_string(),
             Self::RightParen => "RIGHT_PAREN".to_string(),
+            Self::LeftBrace => "LEFT_BRACE".to_string(),
+            Self::RightBrace => "RIGHT_BRACE".to_string(),
             Self::EOF => "EOF".to_string()
         }
     }
@@ -95,6 +99,8 @@ impl Lexer {
         match c {
             '(' => self.add_token(TokenType::LeftParen, Literal::Null),
             ')' => self.add_token(TokenType::RightParen, Literal::Null),
+            '{' => self.add_token(TokenType::LeftBrace, Literal::Null),
+            '}' => self.add_token(TokenType::RightBrace, Literal::Null),
             _ => writeln!(io::stderr(), "Unexpected character: {}", c).unwrap(),
         }
     }
