@@ -1,12 +1,13 @@
 use std::env;
 use std::fs;
 use std::io::{self, Write};
+use std::process::ExitCode;
 
 pub enum TokenType {
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
+    // single-character tokens
+    LeftParen, RightParen, LeftBrace, RightBrace,
+    Comma, Dot, Semicolon, Minus, Plus, Slash, Star,
+
     EOF
 }
 
@@ -17,6 +18,13 @@ impl TokenType {
             Self::RightParen => "RIGHT_PAREN".to_string(),
             Self::LeftBrace => "LEFT_BRACE".to_string(),
             Self::RightBrace => "RIGHT_BRACE".to_string(),
+            Self::Comma => "COMMA".to_string(),
+            Self::Dot => "DOT".to_string(),
+            Self::Semicolon => "SEMICOLON".to_string(),
+            Self::Minus => "MINUS".to_string(),
+            Self::Plus => "PLUS".to_string(),
+            Self::Slash => "SLASH".to_string(),
+            Self::Star => "STAR".to_string(),
             Self::EOF => "EOF".to_string()
         }
     }
@@ -65,7 +73,8 @@ pub struct Lexer {
     tokens: Vec<Token>,
     start: usize,
     current: usize,
-    line: usize
+    line: usize,
+    had_error: bool
 }
 
 impl Lexer {
@@ -75,7 +84,8 @@ impl Lexer {
             tokens: Vec::new(),
             start: 0,
             current: 0,
-            line: 1
+            line: 1,
+            had_error: false,
         }
     }
 
@@ -101,7 +111,18 @@ impl Lexer {
             ')' => self.add_token(TokenType::RightParen, Literal::Null),
             '{' => self.add_token(TokenType::LeftBrace, Literal::Null),
             '}' => self.add_token(TokenType::RightBrace, Literal::Null),
-            _ => writeln!(io::stderr(), "Unexpected character: {}", c).unwrap(),
+            ',' => self.add_token(TokenType::Comma, Literal::Null),
+            '.' => self.add_token(TokenType::Dot, Literal::Null),
+            ';' => self.add_token(TokenType::Semicolon, Literal::Null),
+            '-' => self.add_token(TokenType::Minus, Literal::Null),
+            '+' => self.add_token(TokenType::Plus, Literal::Null),
+            '/' => self.add_token(TokenType::Slash, Literal::Null),
+            '*' => self.add_token(TokenType::Star, Literal::Null),
+            '\n' => self.line += 1,
+            _ => {
+                writeln!(io::stderr(), "[line {}] Error: Unexpected character: {}", self.line, c).unwrap();
+                self.had_error = true;
+            }
         }
     }
 
@@ -123,12 +144,12 @@ impl Lexer {
     }
 }
 
-fn main() {
+fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
         writeln!(io::stderr(), "Usage: {} tokenize <filename>", args[0]).unwrap();
-        return;
+        return ExitCode::from(1);
     }
 
     let command = &args[1];
@@ -153,13 +174,18 @@ fn main() {
                     println!("{}", token.to_string());
                 }
 
+                if lexer.had_error {
+                    return ExitCode::from(65);
+                }
+
             } else {
                 println!("EOF null");
             }
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
-            return;
+            return ExitCode::from(1);
         }
     }
+    ExitCode::SUCCESS
 }
