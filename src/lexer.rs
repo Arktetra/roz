@@ -56,7 +56,13 @@ pub enum Literal {
 impl Literal {
     pub fn to_string(&self) -> String {
         match self {
-            Self::Number(x) => format!("{}", x),
+            Self::Number(x) => {
+                if x.to_string().ends_with(".0") || !x.to_string().contains('.') {
+                    return format!("{:.1}", x);
+                } else {
+                    return format!("{}", x);
+                }
+            }
             Self::String(x) => x.to_string(),
             Self::Null => "null".to_string()
         }
@@ -157,8 +163,12 @@ impl Lexer {
             }
             '\n' => self.line += 1,
             ' ' | '\r' | '\t' => (),
-            _ => {
-                self.error(&format!("Unexpected character: {}", c));
+            x => {
+                if x.is_digit(10) {
+                    self.number();
+                } else {
+                    self.error(&format!("Unexpected character: {}", c));
+                }
             }
         }
     }
@@ -175,10 +185,8 @@ impl Lexer {
             if self.peek() == Some('\n') {
                 self.line += 1;
             }
-
-            let c = self.advance();
             
-            if c == '"' {
+            if self.advance() == '"' {
                 let text = &self.source[self.start + 1..self.current - 1];
                 self.add_token(TokenType::String, Literal::String(text.to_string()));
                 break;
@@ -189,6 +197,43 @@ impl Lexer {
                 break;
             }
         }
+    }
+
+    pub fn number(&mut self) {
+        loop {
+            if let Some(x) = self.peek() {
+                if x.is_digit(10) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        if let Some('.') = self.peek() {
+            if let Some(x) = self.peek_next() {
+                if x.is_digit(10) {
+                    self.advance();
+                }
+            }
+        }
+
+        loop {
+            if let Some(x) = self.peek() {
+                if x.is_digit(10) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        let text = &self.source[self.start..self.current];
+        self.add_token(TokenType::Number, Literal::Number(text.parse::<f32>().unwrap()));
     }
 
     pub fn advance(&mut self) -> char {
@@ -209,6 +254,10 @@ impl Lexer {
 
     pub fn peek(&self) -> Option<char> {
         self.source.chars().nth(self.current)
+    }
+
+    pub fn peek_next(&self) -> Option<char> {
+        self.source.chars().nth(self.current + 1)
     }
 
     pub fn is_at_end(&self) -> bool {
