@@ -1,6 +1,8 @@
 use std::io::{self, Write};
+use std::collections::HashMap;
+use std::sync::OnceLock;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     // single-character tokens
     LeftParen, RightParen, LeftBrace, RightBrace,
@@ -12,6 +14,10 @@ pub enum TokenType {
 
     //Literals
     Identifier, String, Number,
+
+    // reserved words
+    And, Or, Class, Super, This, If, Else, For, While,
+    False, True, Fn, Return, Print, Let, Nil, 
 
     EOF
 }
@@ -41,12 +47,28 @@ impl TokenType {
             Self::Identifier => "IDENTIFIER".to_string(),
             Self::String => "STRING".to_string(),
             Self::Number => "NUMBER".to_string(),
+            Self::And => "AND".to_string(),
+            Self::Or => "OR".to_string(),
+            Self::Class => "CLASS".to_string(),
+            Self::Super => "SUPER".to_string(),
+            Self::This => "THIS".to_string(),
+            Self::If => "IF".to_string(),
+            Self::Else => "ELSE".to_string(),
+            Self::For => "FOR".to_string(),
+            Self::While => "WHILE".to_string(),
+            Self::False => "FALSE".to_string(),
+            Self::True => "TRUE".to_string(),
+            Self::Fn => "FN".to_string(),
+            Self::Return => "RETURN".to_string(),
+            Self::Print => "PRINT".to_string(),
+            Self::Let => "LET".to_string(),
+            Self::Nil => "NIL".to_string(),
             Self::EOF => "EOF".to_string()
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     Number(f32),
     String(String),
@@ -69,7 +91,7 @@ impl Literal {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     token_type: TokenType,
     lexeme: String,
@@ -90,6 +112,31 @@ impl Token {
     pub fn to_string(&self) -> String {
         format!("{} {} {}", self.token_type.to_string(), self.lexeme, self.literal.to_string())
     }
+}
+
+fn keywords() -> &'static HashMap<&'static str, TokenType> {
+    static HASHMAP: OnceLock<HashMap<&str, TokenType>> = OnceLock::new();
+
+    HASHMAP.get_or_init(|| {
+        HashMap::from([
+            ("and",     TokenType::And),
+            ("or",      TokenType::Or),
+            ("class",   TokenType::Class),
+            ("super",   TokenType::Super),
+            ("this",    TokenType::This),
+            ("if",      TokenType::If),
+            ("else",    TokenType::Else),
+            ("for",     TokenType::For),
+            ("while",   TokenType::While),
+            ("false",   TokenType::False),
+            ("true",    TokenType::True),
+            ("fn",      TokenType::Fn),
+            ("return",  TokenType::Return),
+            ("print",   TokenType::Print),
+            ("Let",     TokenType::Let),
+            ("nil",     TokenType::Nil)
+        ])
+    })
 }
 
 pub struct Lexer {
@@ -195,7 +242,13 @@ impl Lexer {
             }
         }
 
-        self.add_token(TokenType::Identifier, Literal::Null);
+        let text = &self.source[self.start..self.current];
+
+        if let Some(token_type) = keywords().get(text) {
+            self.add_token(token_type.clone(), Literal::Null);
+        } else {
+            self.add_token(TokenType::Identifier, Literal::Null);
+        }
     }
 
     pub fn string(&mut self) {
