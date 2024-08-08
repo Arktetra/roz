@@ -164,7 +164,9 @@ impl Lexer {
             '\n' => self.line += 1,
             ' ' | '\r' | '\t' => (),
             x => {
-                if x.is_digit(10) {
+                if x.is_alphabetic() || x == '_' {
+                    self.identifier();
+                } else if x.is_digit(10) {
                     self.number();
                 } else {
                     self.error(&format!("Unexpected character: {}", c));
@@ -178,6 +180,22 @@ impl Lexer {
         self.tokens.push(
             Token::new(token_type, text.to_string(), literal, self.line)
         )
+    }
+
+    pub fn identifier(&mut self) {
+        loop {
+            if let Some(x) = self.peek() {
+                if x.is_alphanumeric() || x == '_' {
+                    self.advance();
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        self.add_token(TokenType::Identifier, Literal::Null);
     }
 
     pub fn string(&mut self) {
