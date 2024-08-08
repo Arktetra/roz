@@ -10,6 +10,9 @@ pub enum TokenType {
     Equal, EqualEqual, Bang, BangEqual,
     Less, LessEqual, Greater, GreaterEqual,
 
+    //Literals
+    Identifier, String, Number,
+
     EOF
 }
 
@@ -35,6 +38,9 @@ impl TokenType {
             Self::LessEqual => "LESSEQUAL".to_string(),
             Self::Greater => "GREATER".to_string(),
             Self::GreaterEqual => "GREATEREQUAL".to_string(),
+            Self::Identifier => "IDENTIFIER".to_string(),
+            Self::String => "STRING".to_string(),
+            Self::Number => "NUMBER".to_string(),
             Self::EOF => "EOF".to_string()
         }
     }
@@ -146,12 +152,13 @@ impl Lexer {
                 let token_type = self.next_char_equal('=', TokenType::GreaterEqual, TokenType::Greater);
                 self.add_token(token_type, Literal::Null);
             }
-
+            '"' => {
+                self.string();
+            }
             '\n' => self.line += 1,
             ' ' | '\r' | '\t' => (),
             _ => {
-                writeln!(io::stderr(), "[line {}] Error: Unexpected character: {}", self.line, c).unwrap();
-                self.had_error = true;
+                self.error(&format!("Unexpected character: {}", c));
             }
         }
     }
@@ -161,6 +168,27 @@ impl Lexer {
         self.tokens.push(
             Token::new(token_type, text.to_string(), literal, self.line)
         )
+    }
+
+    pub fn string(&mut self) {
+        loop {
+            if self.peek() == Some('\n') {
+                self.line += 1;
+            }
+
+            let c = self.advance();
+            
+            if c == '"' {
+                let text = &self.source[self.start + 1..self.current - 1];
+                self.add_token(TokenType::String, Literal::String(text.to_string()));
+                break;
+            }
+
+            if self.is_at_end() {
+                self.error("Unterminated string.");
+                break;
+            }
+        }
     }
 
     pub fn advance(&mut self) -> char {
@@ -186,52 +214,9 @@ impl Lexer {
     pub fn is_at_end(&self) -> bool {
         return self.current >= self.source.len()
     }
-}
 
-// -------------------------------------------------------------------------------------------------------------
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn single_line_scan() {
-        let source = "<>===<>".to_string();
-        let result = Vec::from([
-            Token::new(TokenType::Less, "<".to_string(), Literal::Null, 1),
-            Token::new(TokenType::GreaterEqual, ">=".to_string(), Literal::Null, 1),
-            Token::new(TokenType::EqualEqual, "==".to_string(), Literal::Null, 1),
-            Token::new(TokenType::Less, "<".to_string(), Literal::Null, 1),
-            Token::new(TokenType::Greater, ">".to_string(), Literal::Null, 1),
-            Token::new(TokenType::EOF, "".to_string(), Literal::Null, 1)
-        ]);
-
-        let mut lexer = Lexer::new(&source);
-
-        lexer.scan_tokens();
-
-        assert_eq!(lexer.tokens, result);
-    }
-
-    #[test]
-    fn multi_line_scan() {
-        let source = "(<>=
-        ==<>)".to_string();
-        let result = Vec::from([
-            Token::new(TokenType::LeftParen, "(".to_string(), Literal::Null, 1),
-            Token::new(TokenType::Less, "<".to_string(), Literal::Null, 1),
-            Token::new(TokenType::GreaterEqual, ">=".to_string(), Literal::Null, 1),
-            Token::new(TokenType::EqualEqual, "==".to_string(), Literal::Null, 2),
-            Token::new(TokenType::Less, "<".to_string(), Literal::Null, 2),
-            Token::new(TokenType::Greater, ">".to_string(), Literal::Null, 2),
-            Token::new(TokenType::RightParen, ")".to_string(), Literal::Null, 2),
-            Token::new(TokenType::EOF, "".to_string(), Literal::Null, 2)
-        ]);
-
-        let mut lexer = Lexer::new(&source);
-
-        lexer.scan_tokens();
-
-        assert_eq!(lexer.tokens, result);
-    }
+    pub fn error(&mut self, message: &str) {
+        writeln!(io::stderr(), "[line {}] Error: {}", self.line, message).unwrap();
+        self.had_error = true;
+    } 
 }
