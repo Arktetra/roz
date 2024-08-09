@@ -4,7 +4,10 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 pub mod lexer;
+pub mod expr;
+
 use lexer::Lexer;
+
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
