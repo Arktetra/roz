@@ -2,6 +2,8 @@ use std::io::{self, Write};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+use crate::literal::Literal;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     // single-character tokens
@@ -69,33 +71,10 @@ impl TokenType {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Literal {
-    Number(f32),
-    String(String),
-    Null
-}
-
-impl Literal {
-    pub fn to_string(&self) -> String {
-        match self {
-            Self::Number(x) => {
-                if x.to_string().ends_with(".0") || !x.to_string().contains('.') {
-                    return format!("{:.1}", x);
-                } else {
-                    return format!("{}", x);
-                }
-            }
-            Self::String(x) => x.to_string(),
-            Self::Null => "null".to_string()
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
-    token_type: TokenType,
-    lexeme: String,
-    literal: Literal,
+    pub token_type: TokenType,
+    pub lexeme: String,
+    pub literal: Literal,
     line: usize
 }
 

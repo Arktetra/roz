@@ -3,8 +3,14 @@ use std::fs;
 use std::io::{self, Write};
 use std::process::ExitCode;
 
+pub mod literal;
 pub mod lexer;
+pub mod expr;
+pub mod parser;
+pub mod interpreter;
+
 use lexer::Lexer;
+
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
