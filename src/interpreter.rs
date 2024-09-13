@@ -88,27 +88,21 @@ impl Interpreter {
                 Ok((left / right).unwrap())
             }
             TokenType::Greater => {
-                self.check_number_operands(&left, operator, &right)?;
                 Ok(Literal::Bool(left > right))
             }
             TokenType::Less => {
-                self.check_number_operands(&left, operator, &right)?;
                 Ok(Literal::Bool(left < right))
             }
             TokenType::GreaterEqual => {
-                self.check_number_operands(&left, operator, &right)?;
                 Ok(Literal::Bool(left >= right))
             }
             TokenType::LessEqual => {
-                self.check_number_operands(&left, operator, &right)?;
                 Ok(Literal::Bool(left <= right))
             }
             TokenType::EqualEqual => {
-                self.check_number_operands(&left, operator, &right)?;
                 Ok(Literal::Bool(self.is_equal(&left, &right)))
             }
             TokenType::BangEqual => {
-                self.check_number_operands(&left, operator, &right)?;
                 Ok(Literal::Bool(!self.is_equal(&left, &right)))
             }
             _ => Ok(Literal::Null)
