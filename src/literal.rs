@@ -1,4 +1,5 @@
 use std::ops;
+use std::cmp::Ordering;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
@@ -30,6 +31,34 @@ impl Literal {
             Self::String(_) => "string".to_string(),
             Self::Bool(_) => "bool".to_string(),
             Self::Null => "null".to_string(),
+        }
+    }
+
+    pub fn is_double(&self) -> bool {
+        match self {
+            Literal::Number(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_bool(&self) -> bool {
+        match self {
+            Literal::Bool(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_string(&self) -> bool {
+        match self {
+            Literal::String(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_null(&self) -> bool {
+        match self {
+            Literal::Null => true,
+            _ => false,
         }
     }
 }
@@ -89,6 +118,23 @@ impl ops::Div for Literal {
         match(self, rhs) {
             (Literal::Number(x), Literal::Number(y)) => Ok(Literal::Number(x / y)),
             (lhs, rhs) => Err(format!("Cannot multiply '{}' by '{}'", lhs.literal_type(), rhs.literal_type()))
+        }
+    }
+}
+
+impl PartialOrd<Self> for Literal {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Literal::Number(x), Literal::Number(y)) => {
+                if x > y {
+                    Some(Ordering::Greater)
+                } else if x < y {
+                    Some(Ordering::Less)
+                } else {
+                    Some(Ordering::Equal)
+                }
+            }
+            (_, _) => None,
         }
     }
 }
