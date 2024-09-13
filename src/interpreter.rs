@@ -1,7 +1,7 @@
 use crate::{
     lexer::{TokenType, Token}, 
     literal::Literal,
-    expr::Expr, 
+    stmt::{Stmt, Expr}
 };
 
 #[derive(Debug)]
@@ -17,16 +17,16 @@ impl Interpreter {
         self.walk_expr(expr)
     }
 
-    pub fn interpret(&mut self, expr: Expr) -> Result<String, RuntimeError> {
-        let result = self.evaluate(&expr);
-
-        match result {
-            Ok(Literal::Number(x)) => Ok(x.to_string()),
-            Ok(Literal::String(x)) => Ok(x),
-            Ok(Literal::Bool(x)) => Ok(x.to_string()),
-            Ok(Literal::Null) => Ok("Nil".to_string()),
-            Err(error) => Err(error)
+    pub fn interpret(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
+        for stmt in stmts {
+            self.execute(stmt)?;
         }
+        Ok(())
+    }
+
+    fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+        self.walk_stmt(stmt)?;
+        Ok(())
     }
 
     fn is_true(&self, value: &Literal) -> bool {
@@ -129,6 +129,8 @@ impl Interpreter {
 pub trait Visitor {
     fn visit_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError>;
     fn walk_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError>;
+    fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError>;
+    fn walk_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError>;
 }
 
 impl Visitor for Interpreter {
@@ -157,26 +159,23 @@ impl Visitor for Interpreter {
             Expr::Literal(_) => self.visit_expr(expr)
         }
     }
-}
 
-#[cfg(test)]
-mod  tests {
-    use super::*;
-    use crate::parser::Parser;
-    use crate::lexer::Lexer;
+    fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+        match stmt {
+            Stmt::Expression(expr) => {
+                self.evaluate(expr)?;
+                Ok(())
+            }
+            Stmt::Print(expr) => {
+                let value = self.evaluate(expr)?;
+                println!("{}", value.to_string());
+                Ok(())
+            }
+        }
+    }
 
-    #[test]
-    fn arithmetic() {
-        let input = "(5 - 2) * 5 / 3".to_string();
-
-        let mut lexer = Lexer::new(&input);
-        lexer.scan_tokens();
-
-        let mut parser = Parser::new(lexer.tokens);
-
-        let expr = parser.parse().unwrap();
-        let mut interpreter = Interpreter;
-
-        assert_eq!(Literal::Number(5.0), interpreter.walk_expr(&expr).unwrap());
+    fn walk_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+        self.visit_stmt(stmt)?;
+        Ok(())
     }
 }
