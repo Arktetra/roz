@@ -14,6 +14,12 @@ pub trait Visitor<T> {
 
 pub struct AstPrinter;
 
+impl AstPrinter {
+    pub fn print(&mut self, expr: &Expr) -> String {
+        self.walk_expr(expr)
+    }
+}
+
 impl Visitor<String> for AstPrinter {
     fn visit_expr(&mut self, expr: &Expr) -> String {
         match *expr {
