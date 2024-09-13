@@ -7,6 +7,11 @@ pub enum Expr {
     Literal(Box<Literal>)
 }
 
+pub enum Stmt {
+    Expression(Expr),
+    Print(Expr)
+}
+
 pub trait Visitor<T> {
     fn visit_expr(&mut self, expr: &Expr) -> T;
     fn walk_expr(&mut self, expr: &Expr) ->T;
