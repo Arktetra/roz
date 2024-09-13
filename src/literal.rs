@@ -70,6 +70,8 @@ impl ops::Add<Literal> for Literal {
         match (self, rhs) {
             (Literal::Number(lhs), Literal::Number(rhs)) => Ok(Literal::Number(lhs + rhs)),
             (Literal::String(lhs), Literal::String(rhs)) => Ok(Literal::String(lhs + &rhs)),
+            (Literal::Number(lhs), Literal::String(rhs)) => Ok(Literal::String(lhs.to_string() + &rhs)),
+            (Literal::String(lhs), Literal::Number(rhs)) => Ok(Literal::String(lhs + &rhs.to_string())),
             (lhs, rhs) => Err(format!("Cannot add '{}' and '{}'", lhs.literal_type(), rhs.literal_type()))
         }
     }

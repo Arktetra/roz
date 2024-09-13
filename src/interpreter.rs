@@ -76,7 +76,7 @@ impl Interpreter {
                 Ok((left - right).unwrap())
             }
             TokenType::Plus => {
-                self.check_number_operands(&left, operator, &right)?;
+                // self.check_number_operands(&left, operator, &right)?;
                 Ok((left + right).unwrap())
             }
             TokenType::Star => {
