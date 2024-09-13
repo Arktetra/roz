@@ -77,6 +77,6 @@ mod tests {
 
         let mut printer = AstPrinter;
         
-        assert_eq!("(- (* 2 (* 2 (/ 2 2))))", printer.walk_expr(&parser.expression()));
+        assert_eq!("(- (* 2 (* 2 (/ 2 2))))", printer.walk_expr(&parser.expression().unwrap()));
     }
 }
