@@ -1,8 +1,12 @@
-use std::io::{self, Write};
-use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::{
+    collections::HashMap,
+    sync::OnceLock
+};
 
-use crate::literal::Literal;
+use crate::{
+    literal::Literal,
+    roz,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
@@ -75,7 +79,7 @@ pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
     pub literal: Literal,
-    line: usize
+    pub line: usize
 }
 
 impl Token {
@@ -124,18 +128,16 @@ pub struct Lexer {
     start: usize,
     current: usize,
     line: usize,
-    pub had_error: bool
 }
 
 impl Lexer {
-    pub fn new(source: &String) -> Self {
+    pub fn new(source: &str) -> Self {
         Self {
             source: source.to_string(),
             tokens: Vec::new(),
             start: 0,
             current: 0,
             line: 1,
-            had_error: false,
         }
     }
 
@@ -195,7 +197,7 @@ impl Lexer {
                 } else if x.is_digit(10) {
                     self.number();
                 } else {
-                    self.error(&format!("Unexpected character: {}", c));
+                    roz::lexical_error(self.line, &format!("Unexpected character: {}", c));
                 }
             }
         }
@@ -243,7 +245,7 @@ impl Lexer {
             }
 
             if self.is_at_end() {
-                self.error("Unterminated string.");
+                roz::lexical_error(self.line, "Unterminated string.");
                 break;
             }
         }
@@ -313,9 +315,4 @@ impl Lexer {
     pub fn is_at_end(&self) -> bool {
         return self.current >= self.source.len()
     }
-
-    pub fn error(&mut self, message: &str) {
-        writeln!(io::stderr(), "[line {}] Error: {}", self.line, message).unwrap();
-        self.had_error = true;
-    } 
 }
