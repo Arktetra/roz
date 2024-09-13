@@ -1,13 +1,16 @@
 use std::io::{self, Write};
+use std::process::ExitCode;
+use std::fs;
 
 use crate::{
     expr::AstPrinter,
     lexer::{Lexer, Token, TokenType},
     parser::Parser,
-    interpreter::Interpreter
+    interpreter::{Interpreter, RuntimeError}
 };
 
 static mut HAD_ERROR: bool = false;
+static mut HAD_RUNTIME_ERROR: bool = false;
 
 pub enum Flag {
     Ast,
@@ -42,6 +45,30 @@ pub fn run_prompt(flag: Flag) {
             Flag::Ast => ast(&input),
             Flag::Run => run(&input)
         } 
+
+        unsafe {
+            HAD_ERROR = false;
+        }
+    }
+}
+
+pub fn run_file(filename: &str) -> ExitCode {
+    let filecontent = fs::read_to_string(filename)
+        .unwrap_or_else(|_| {
+            writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
+            String::new()
+        });
+    
+    run(&filecontent);
+    
+    unsafe {
+        if HAD_ERROR {
+            ExitCode::from(65)
+        } else if HAD_RUNTIME_ERROR {
+            ExitCode::from(70)   
+        }else {
+            ExitCode::SUCCESS
+        }
     }
 }
 
@@ -54,9 +81,16 @@ pub fn run(input: &str) {
 
     match parser.parse() {
         Ok(expr) => {
+            unsafe {
+                if HAD_ERROR {
+                    println!("ghello");
+                    return
+                }
+            }
+
             match interpreter.interpret(expr) {
                 Ok(x) => println!("#> {}", x),
-                Err(runtime_err) => error(&runtime_err.token, &runtime_err.message)
+                Err(runtime_err) => runtime_error(runtime_err)
             }
         }
         Err(parse_err) => error(&parse_err.token, &parse_err.message)
@@ -85,6 +119,14 @@ pub fn error(token: &Token, message: &str) {
         report(token.line, "at the end", message);
     } else {
         report(token.line, &format!("at '{}'", token.lexeme), message);
+    }
+}
+
+pub fn runtime_error(error: RuntimeError) {
+    writeln!(io::stderr(), "{}\n[line {}]", error.message, error.token.line).unwrap();
+
+    unsafe {
+        HAD_RUNTIME_ERROR = true;
     }
 }
 

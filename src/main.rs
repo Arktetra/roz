@@ -1,6 +1,5 @@
 use std::{
     env,
-    fs,
     io::{self, Write},
     process::ExitCode
 };
@@ -23,14 +22,7 @@ fn main() -> ExitCode {
         if args[1] == "--ast" {
             roz::run_prompt(Flag::Ast);
         } else {
-            let filename = &args[1];
-            let filecontent = fs::read_to_string(filename)
-                .unwrap_or_else(|_| {
-                    writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
-                    String::new()
-                });
-    
-            roz::run(&filecontent);
+            return roz::run_file(&args[1]);
         }
     } else {
         if args.len() > 3 {
