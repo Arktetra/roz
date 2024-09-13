@@ -1,4 +1,9 @@
-use crate::{expr::Expr, lexer::{Token, TokenType}, literal::Literal};
+use crate::{
+    expr::Expr,
+    lexer::{Token, TokenType},
+    literal::Literal,
+    roz,
+};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -7,10 +12,7 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self {
-            tokens,
-            current: 0
-        }
+        Self { tokens, current: 0 }
     }
 
     pub fn expression(&mut self) -> Expr {
@@ -22,13 +24,9 @@ impl Parser {
 
         while self.match_token_type(Vec::from([TokenType::BangEqual, TokenType::EqualEqual])) {
             let operator = self.previous().clone();
-            let right = self.comparison();
+            let right = self.equality();
 
-            return Expr::Binary(
-                Box::new(left), 
-                Box::new(operator), 
-                Box::new(right)
-            );
+            return Expr::Binary(Box::new(left), Box::new(operator), Box::new(right));
         }
 
         return left;
@@ -38,76 +36,52 @@ impl Parser {
         let left = self.term();
 
         while self.match_token_type(Vec::from([
-            TokenType::Greater, 
-            TokenType::GreaterEqual, 
-            TokenType::Less, 
-            TokenType::LessEqual
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual,
         ])) {
             let operator = self.previous().clone();
-            let right = self.term();         
+            let right = self.equality();
 
-            return Expr::Binary(
-                Box::new(left),
-                Box::new(operator),
-                Box::new(right)
-            )   
+            return Expr::Binary(Box::new(left), Box::new(operator), Box::new(right));
         }
 
         return left;
     }
 
-    pub fn term(&mut self) -> Expr {   
+    pub fn term(&mut self) -> Expr {
         let left = self.factor();
 
-        while self.match_token_type(Vec::from([
-            TokenType::Plus,
-            TokenType::Minus
-        ])) {
+        while self.match_token_type(Vec::from([TokenType::Plus, TokenType::Minus])) {
             let operator = self.previous().clone();
             let right = self.term();
 
-            return Expr::Binary(
-                Box::new(left),
-                Box::new(operator),
-                Box::new(right)
-            )
+            return Expr::Binary(Box::new(left), Box::new(operator), Box::new(right));
         }
-        
+
         return left;
     }
 
     pub fn factor(&mut self) -> Expr {
         let left = self.unary();
 
-        while self.match_token_type(Vec::from([
-            TokenType::Star,
-            TokenType::Slash
-        ])) {
+        while self.match_token_type(Vec::from([TokenType::Star, TokenType::Slash])) {
             let operator = self.previous().clone();
             let right = self.term();
 
-            return Expr::Binary(
-                Box::new(left),
-                Box::new(operator),
-                Box::new(right)
-            )
+            return Expr::Binary(Box::new(left), Box::new(operator), Box::new(right));
         }
 
         return left;
     }
 
     pub fn unary(&mut self) -> Expr {
-        if self.match_token_type(Vec::from([
-            TokenType::Bang,
-            TokenType::Minus
-        ])) {
+        if self.match_token_type(Vec::from([TokenType::Bang, TokenType::Minus])) {
             let operator = self.previous().clone();
             let right = self.term();
 
-            return Expr::Unary(
-                Box::new(operator),
-                Box::new(right)
-            )
+            return Expr::Unary(Box::new(operator), Box::new(right));
         }
 
         return self.primary();
@@ -122,12 +96,9 @@ impl Parser {
             return Expr::Literal(Box::new(Literal::Bool(false)));
         }
 
-        if self.match_token_type(Vec::from([
-            TokenType::Number,
-            TokenType::String
-        ])) {
+        if self.match_token_type(Vec::from([TokenType::Number, TokenType::String])) {
             return Expr::Literal(Box::new(self.previous().literal.clone()));
-        } 
+        }
 
         if self.match_token_type(Vec::from([TokenType::LeftParen])) {
             let expr = self.expression();
@@ -149,8 +120,10 @@ impl Parser {
         return false;
     }
 
-    pub fn check(&self, token_type: TokenType) -> bool{
-        if self.is_at_end() { return false; }
+    pub fn check(&self, token_type: TokenType) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
 
         self.peek().token_type == token_type
     }
@@ -167,7 +140,8 @@ impl Parser {
         if self.check(token_type) {
             return self.advance();
         } else {
-            panic!("{}", message);
+            roz::error(self.peek(), message);
+            panic!("");
         }
     }
 
@@ -182,6 +156,4 @@ impl Parser {
     pub fn previous(&self) -> &Token {
         &self.tokens[self.current - 1]
     }
-
 }
-
