@@ -3,7 +3,6 @@ use std::process::ExitCode;
 use std::fs;
 
 use crate::{
-    expr::AstPrinter,
     lexer::{Lexer, Token, TokenType},
     parser::Parser,
     interpreter::{Interpreter, RuntimeError}
@@ -12,22 +11,7 @@ use crate::{
 static mut HAD_ERROR: bool = false;
 static mut HAD_RUNTIME_ERROR: bool = false;
 
-pub enum Flag {
-    Ast,
-    Run
-}
-
-/// Runs the interpreter in REPL mode. `flag` is used to set the 
-/// interpreter to print ast or the result.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use roz;
-/// 
-/// roz::run_prompt(Flag::Run);
-/// ```
-pub fn run_prompt(flag: Flag) {
+pub fn run_prompt() {
     loop {
         print!("#> ");
         let mut input = String::new();
@@ -41,10 +25,7 @@ pub fn run_prompt(flag: Flag) {
             break;
         }
 
-        match flag {
-            Flag::Ast => ast(&input),
-            Flag::Run => run(&input)
-        } 
+        run(&input);
 
         unsafe {
             HAD_ERROR = false;
@@ -80,7 +61,7 @@ pub fn run(input: &str) {
     let mut interpreter = Interpreter;
 
     match parser.parse() {
-        Ok(expr) => {
+        Ok(stmts) => {
             unsafe {
                 if HAD_ERROR {
                     println!("ghello");
@@ -88,24 +69,10 @@ pub fn run(input: &str) {
                 }
             }
 
-            match interpreter.interpret(expr) {
-                Ok(x) => println!("#> {}", x),
-                Err(runtime_err) => runtime_error(runtime_err)
+            if let Err(runtime_err) = interpreter.interpret(&stmts) {
+                runtime_error(runtime_err);
             }
         }
-        Err(parse_err) => error(&parse_err.token, &parse_err.message)
-    }
-}
-
-pub fn ast(input: &str) {
-    let mut lexer = Lexer::new(input);
-    lexer.scan_tokens();
-
-    let mut parser = Parser::new(lexer.tokens);
-    let mut printer = AstPrinter;
-
-    match parser.parse() {
-        Ok(expr) => println!("#> {}", printer.print(&expr)),
         Err(parse_err) => error(&parse_err.token, &parse_err.message)
     }
 }
