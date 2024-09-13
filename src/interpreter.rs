@@ -4,21 +4,28 @@ use crate::{
     expr::Expr, 
 };
 
+#[derive(Debug)]
+pub struct RuntimeError {
+    pub token: Token,
+    pub message: String
+}
+
 pub struct Interpreter;
 
 impl Interpreter {
-    fn evaluate(&mut self, expr: &Expr) -> Literal {
+    fn evaluate(&mut self, expr: &Expr) -> Result<Literal, RuntimeError> {
         self.walk_expr(expr)
     }
 
-    pub fn interpret(&mut self, expr: Expr) -> String {
+    pub fn interpret(&mut self, expr: Expr) -> Result<String, RuntimeError> {
         let result = self.evaluate(&expr);
 
         match result {
-            Literal::Number(x) => x.to_string(),
-            Literal::String(x) => x,
-            Literal::Bool(x) => x.to_string(),
-            Literal::Null => "Nil".to_string(),
+            Ok(Literal::Number(x)) => Ok(x.to_string()),
+            Ok(Literal::String(x)) => Ok(x),
+            Ok(Literal::Bool(x)) => Ok(x.to_string()),
+            Ok(Literal::Null) => Ok("Nil".to_string()),
+            Err(error) => Err(error)
         }
     }
 
@@ -38,96 +45,100 @@ impl Interpreter {
         }
     }
 
-    fn visit_literal_expr(&mut self, literal: &Box<Literal>) -> Literal {
-        *literal.clone()
+    fn visit_literal_expr(&mut self, literal: &Box<Literal>) -> Result<Literal, RuntimeError> {
+        Ok(*literal.clone())
     }
 
-    fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> Literal {
+    fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> Result<Literal, RuntimeError> {
         self.evaluate(expr)
     }
 
-    fn visit_unary_expr(&mut self, operator: &Box<Token>, expr: &Box<Expr>) -> Literal {
-        let right = self.evaluate(expr);
+    fn visit_unary_expr(&mut self, operator: &Box<Token>, expr: &Box<Expr>) -> Result<Literal, RuntimeError> {
+        let right = self.evaluate(expr)?;
 
-        self.check_number_operand(&right);
+        self.check_number_operand(operator, &right)?;
 
         match operator.token_type {
-            TokenType::Minus => (- right).unwrap(),
-            TokenType::Plus => right,
-            TokenType::Bang => Literal::Bool(!self.is_true(&right)),
-            _ => Literal::Null
+            TokenType::Minus => Ok((- right).unwrap()),
+            TokenType::Plus => Ok(right),
+            TokenType::Bang => Ok(Literal::Bool(!self.is_true(&right))),
+            _ => Ok(Literal::Null)
         }
     }
 
-    fn visit_binary_expr(&mut self, left: &Box<Expr>, operator: &Box<Token>, right: &Box<Expr>) -> Literal {
-        let left = self.evaluate(left);
-        let right = self.evaluate(right);
+    fn visit_binary_expr(&mut self, left: &Box<Expr>, operator: &Box<Token>, right: &Box<Expr>) -> Result<Literal, RuntimeError> {
+        let left = self.evaluate(left)?;
+        let right = self.evaluate(right)?;
 
         match operator.token_type {
             TokenType::Minus => {
-                self.check_number_operands(&left, &right);
-                (left - right).unwrap()
+                self.check_number_operands(&left, operator,  &right)?;
+                Ok((left - right).unwrap())
             }
             TokenType::Plus => {
-                self.check_number_operands(&left, &right);
-                (left + right).unwrap()
+                self.check_number_operands(&left, operator, &right)?;
+                Ok((left + right).unwrap())
             }
             TokenType::Star => {
-                self.check_number_operands(&left, &right);
-                (left * right).unwrap()
+                self.check_number_operands(&left, operator, &right)?;
+                Ok((left * right).unwrap())
             }
             TokenType::Slash => {
-                self.check_number_operands(&left, &right);
-                (left / right).unwrap()
+                self.check_number_operands(&left, operator, &right)?;
+                Ok((left / right).unwrap())
             }
             TokenType::Greater => {
-                self.check_number_operands(&left, &right);
-                Literal::Bool(left > right)
+                self.check_number_operands(&left, operator, &right)?;
+                Ok(Literal::Bool(left > right))
             }
             TokenType::Less => {
-                self.check_number_operands(&left, &right);
-                Literal::Bool(left < right)
+                self.check_number_operands(&left, operator, &right)?;
+                Ok(Literal::Bool(left < right))
             }
             TokenType::GreaterEqual => {
-                self.check_number_operands(&left, &right);
-                Literal::Bool(left >= right)
+                self.check_number_operands(&left, operator, &right)?;
+                Ok(Literal::Bool(left >= right))
             }
             TokenType::LessEqual => {
-                self.check_number_operands(&left, &right);
-                Literal::Bool(left <= right)
+                self.check_number_operands(&left, operator, &right)?;
+                Ok(Literal::Bool(left <= right))
             }
             TokenType::EqualEqual => {
-                self.check_number_operands(&left, &right);
-                Literal::Bool(self.is_equal(&left, &right))
+                self.check_number_operands(&left, operator, &right)?;
+                Ok(Literal::Bool(self.is_equal(&left, &right)))
             }
             TokenType::BangEqual => {
-                self.check_number_operands(&left, &right);
-                Literal::Bool(!self.is_equal(&left, &right))
+                self.check_number_operands(&left, operator, &right)?;
+                Ok(Literal::Bool(!self.is_equal(&left, &right)))
             }
-            _ => Literal::Null
+            _ => Ok(Literal::Null)
         }
     }
 
-    fn check_number_operand(&self, operand: &Literal) -> () {
-        if operand.is_double() { return; }
-
-        panic!()
+    fn check_number_operand(&self, operator: &Token, operand: &Literal) -> Result<(), RuntimeError> {
+        if operand.is_double() {
+            return Ok(())
+        } else {
+            return Err(RuntimeError{token: operator.clone(), message: "Expected the operand to be a double.".to_string()})
+        }
     }
 
-    fn check_number_operands(&self, left: &Literal, right: &Literal) -> () {
-        if left.is_double() && right.is_double() { return; }
-
-        panic!()
+    fn check_number_operands(&self, left: &Literal, operator: &Token, right: &Literal) -> Result<(), RuntimeError> {
+        if left.is_double() && right.is_double() { 
+            return Ok(());
+        } else {
+            return Err(RuntimeError{token: operator.clone(), message: "Expected both operands to be double.".to_string()});
+        }
     }
 }
 
 pub trait Visitor {
-    fn visit_expr(&mut self, expr: &Expr) -> Literal;
-    fn walk_expr(&mut self, expr: &Expr) -> Literal;
+    fn visit_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError>;
+    fn walk_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError>;
 }
 
 impl Visitor for Interpreter {
-    fn visit_expr(&mut self, expr: &Expr) -> Literal {
+    fn visit_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError> {
         match expr {
             Expr::Literal(ref literal) => {
                 self.visit_literal_expr(literal)
@@ -144,7 +155,7 @@ impl Visitor for Interpreter {
         }
     }
 
-    fn walk_expr(&mut self, expr: &Expr) -> Literal {
+    fn walk_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError> {
         match expr {
             Expr::Binary(_, _, _) => self.visit_expr(expr),
             Expr::Unary(_, _) => self.visit_expr(expr),
@@ -169,9 +180,9 @@ mod  tests {
 
         let mut parser = Parser::new(lexer.tokens);
 
-        let expr = parser.expression();
+        let expr = parser.parse().unwrap();
         let mut interpreter = Interpreter;
 
-        assert_eq!(Literal::Number(5.0), interpreter.walk_expr(&expr));
+        assert_eq!(Literal::Number(5.0), interpreter.walk_expr(&expr).unwrap());
     }
 }

@@ -39,31 +39,41 @@ pub fn run_prompt(flag: Flag) {
         }
 
         match flag {
-            Flag::Ast =>  println!("#> {}", ast(&input)),
-            Flag::Run =>  println!("#> {}", run(&input))
+            Flag::Ast => ast(&input),
+            Flag::Run => run(&input)
         } 
     }
 }
 
-pub fn run(input: &str) -> String {
+pub fn run(input: &str) {
     let mut lexer = Lexer::new(input);
     lexer.scan_tokens();
 
     let mut parser = Parser::new(lexer.tokens);
-
     let mut interpreter = Interpreter;
-    return interpreter.interpret(parser.expression());
+
+    match parser.parse() {
+        Ok(expr) => {
+            match interpreter.interpret(expr) {
+                Ok(x) => println!("#> {}", x),
+                Err(runtime_err) => error(&runtime_err.token, &runtime_err.message)
+            }
+        }
+        Err(parse_err) => error(&parse_err.token, &parse_err.message)
+    }
 }
 
-
-pub fn ast(input: &str) -> String {
+pub fn ast(input: &str) {
     let mut lexer = Lexer::new(input);
     lexer.scan_tokens();
 
     let mut parser = Parser::new(lexer.tokens);
     let mut printer = AstPrinter;
 
-    return printer.print(&parser.expression());
+    match parser.parse() {
+        Ok(expr) => println!("#> {}", printer.print(&expr)),
+        Err(parse_err) => error(&parse_err.token, &parse_err.message)
+    }
 }
 
 pub fn lexical_error(line: usize, message: &str) {

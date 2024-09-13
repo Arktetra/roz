@@ -30,7 +30,7 @@ fn main() -> ExitCode {
                     String::new()
                 });
     
-            println!("{}", roz::run(&filecontent));
+            roz::run(&filecontent);
         }
     } else {
         if args.len() > 3 {
