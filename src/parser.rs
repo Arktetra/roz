@@ -1,5 +1,5 @@
 use crate::{
-    expr::Expr,
+    stmt::{Stmt, Expr},
     lexer::{Token, TokenType},
     literal::Literal,
 };
@@ -20,8 +20,38 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Result<Expr, ParseError> {
-        self.expression()
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseError> {
+        let mut statements = Vec::new();
+
+        while !self.is_at_end() {
+            statements.push(self.statement()?);
+        }
+
+        Ok(statements)
+    }
+
+    pub fn statement(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_token_type(Vec::from([TokenType::Print])) {
+            return self.print_statement();
+        }
+
+        return self.expression_statement();
+    }
+
+    pub fn print_statement(&mut self) -> Result<Stmt, ParseError> {
+        let expr = self.expression()?;
+
+        self.consume(TokenType::Semicolon, "';' expected.")?;
+
+        return Ok(Stmt::Print(expr));
+    }
+
+    pub fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
+        let expr = self.expression()?;
+
+        self.consume(TokenType::Semicolon, "';' expected.")?;
+
+        return Ok(Stmt::Expression(expr));
     }
 
     pub fn expression(&mut self) -> Result<Expr, ParseError> {
