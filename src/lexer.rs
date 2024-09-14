@@ -116,7 +116,7 @@ fn keywords() -> &'static HashMap<&'static str, TokenType> {
             ("fn",      TokenType::Fn),
             ("return",  TokenType::Return),
             ("print",   TokenType::Print),
-            ("Let",     TokenType::Let),
+            ("let",     TokenType::Let),
             ("nil",     TokenType::Nil)
         ])
     })
