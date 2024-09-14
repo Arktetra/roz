@@ -25,4 +25,14 @@ impl Environment {
             Err(RuntimeError{token: name, message: message})
         }
     }
+
+    pub fn assign(&mut self, name: Token, value: Literal) -> Result<(), RuntimeError> {
+        if self.values.contains_key(&name.lexeme) {
+            self.values.insert(name.lexeme, value);
+            Ok(())
+        } else {
+            let message = format!("undefined variable '{}'", name.lexeme);
+            Err(RuntimeError { token: name, message })
+        }
+    }
 }

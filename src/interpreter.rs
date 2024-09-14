@@ -162,17 +162,16 @@ impl Visitor for Interpreter {
             Expr::Variable(name) => {
                 self.visit_variable_expr(name)
             }
+            Expr::Assign(name, rhs) => {
+                let value = self.evaluate(rhs)?;
+                self.environment.assign(name.clone(), value.clone())?;
+                Ok(value)
+            }
         }
     }
 
     fn walk_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError> {
-        match expr {
-            Expr::Binary(_, _, _) => self.visit_expr(expr),
-            Expr::Unary(_, _) => self.visit_expr(expr),
-            Expr::Grouping(_) => self.visit_expr(expr),
-            Expr::Literal(_) => self.visit_expr(expr),
-            Expr::Variable(_) => self.visit_expr(expr),
-        }
+        self.visit_expr(expr)
     }
 
     fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {

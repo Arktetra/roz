@@ -47,7 +47,7 @@ impl Parser {
             initializer = self.expression()?;
         }
 
-        
+
         self.consume(TokenType::Semicolon, "Expected ';'")?;
 
         return Ok(Stmt::Var(name, initializer));
@@ -78,7 +78,27 @@ impl Parser {
     }
 
     pub fn expression(&mut self) -> Result<Expr, ParseError> {
-        self.equality()
+        self.assignment()
+    }
+
+    pub fn assignment(&mut self) -> Result<Expr, ParseError> {
+        let expr = self.equality()?;
+
+        if self.match_token_type(Vec::from([TokenType::Equal])) {
+            let equals = self.previous().clone();
+            let value = self.assignment()?;
+
+            match expr {
+                Expr::Variable(name) => {
+                    return Ok(Expr::Assign(name, Box::new(value)));
+                }
+                _ => { 
+                    return Err(ParseError {token: equals.clone(), message: "invalid assignment target.".to_string()});
+                }
+            }
+        }
+
+        Ok(expr)
     }
 
     pub fn equality(&mut self) -> Result<Expr, ParseError> {
