@@ -1,13 +1,13 @@
 use crate::{
-    stmt::{Stmt, Expr},
     lexer::{Token, TokenType},
     literal::Literal,
+    stmt::{Expr, Stmt},
 };
 
 #[derive(Debug)]
 pub struct ParseError {
     pub token: Token,
-    pub message: String
+    pub message: String,
 }
 
 #[derive(Clone)]
@@ -40,13 +40,14 @@ impl Parser {
     }
 
     pub fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
-        let name = self.consume(TokenType::Identifier, "Expected variable name")?.clone();
+        let name = self
+            .consume(TokenType::Identifier, "Expected variable name")?
+            .clone();
 
-        let mut initializer = Expr::Literal(Box::new(Literal::Null));
+        let mut initializer = Expr::Literal(Literal::Null);
         if self.match_token_type(Vec::from([TokenType::Equal])) {
             initializer = self.expression()?;
         }
-
 
         self.consume(TokenType::Semicolon, "Expected ';'")?;
 
@@ -60,6 +61,10 @@ impl Parser {
 
         if self.match_token_type(Vec::from([TokenType::LeftBrace])) {
             return self.block();
+        }
+
+        if self.match_token_type(Vec::from([TokenType::If])) {
+            return self.if_statement();
         }
 
         return self.expression_statement();
@@ -81,6 +86,21 @@ impl Parser {
         return Ok(Stmt::Expression(expr));
     }
 
+    pub fn if_statement(&mut self) -> Result<Stmt, ParseError> {
+        self.consume(TokenType::LeftParen, "Expected '('.")?;
+        let expr = self.expression()?;
+        self.consume(TokenType::RightParen, "Expected ')'.")?;
+
+        let then_stmt = self.statement()?;
+
+        let mut else_stmt = Stmt::None;
+        if self.match_token_type(Vec::from([TokenType::Else])) {
+            else_stmt = self.statement()?;
+        }
+
+        Ok(Stmt::If(expr, Box::new(then_stmt), Box::new(else_stmt)))
+    }
+
     pub fn block(&mut self) -> Result<Stmt, ParseError> {
         let mut statements = Vec::new();
 
@@ -98,7 +118,7 @@ impl Parser {
     }
 
     pub fn assignment(&mut self) -> Result<Expr, ParseError> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         if self.match_token_type(Vec::from([TokenType::Equal])) {
             let equals = self.previous().clone();
@@ -108,10 +128,39 @@ impl Parser {
                 Expr::Variable(name) => {
                     return Ok(Expr::Assign(name, Box::new(value)));
                 }
-                _ => { 
-                    return Err(ParseError {token: equals.clone(), message: "invalid assignment target.".to_string()});
+                _ => {
+                    return Err(ParseError {
+                        token: equals.clone(),
+                        message: "invalid assignment target.".to_string(),
+                    });
                 }
             }
+        }
+
+        Ok(expr)
+    }
+
+    pub fn or(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.and()?;
+
+        while self.match_token_type(Vec::from([TokenType::Or])) {
+            let operator = self.previous().clone();
+            let right = self.and()?;
+
+            expr = Expr::Logical(Box::new(expr), operator, Box::new(right));
+        }
+
+        Ok(expr)
+    }
+
+    pub fn and(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.equality()?;
+
+        while self.match_token_type(Vec::from([TokenType::And])) {
+            let operator = self.previous().clone();
+            let right = self.and()?;
+
+            expr = Expr::Logical(Box::new(expr), operator, Box::new(right));
         }
 
         Ok(expr)
@@ -124,7 +173,7 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.comparison()?;
 
-            expr = Expr::Binary(Box::new(expr), Box::new(operator), Box::new(right));
+            expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
 
         return Ok(expr);
@@ -142,7 +191,7 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.term()?;
 
-            expr = Expr::Binary(Box::new(expr), Box::new(operator), Box::new(right));
+            expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
 
         return Ok(expr);
@@ -155,7 +204,7 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.factor()?;
 
-            expr = Expr::Binary(Box::new(expr), Box::new(operator), Box::new(right));
+            expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
 
         return Ok(expr);
@@ -168,7 +217,7 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.unary()?;
 
-            expr = Expr::Binary(Box::new(expr), Box::new(operator), Box::new(right));
+            expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
 
         return Ok(expr);
@@ -179,7 +228,7 @@ impl Parser {
             let operator = self.previous().clone();
             let right = self.unary()?;
 
-            return Ok(Expr::Unary(Box::new(operator), Box::new(right)));
+            return Ok(Expr::Unary(operator, Box::new(right)));
         }
 
         return self.primary();
@@ -187,15 +236,15 @@ impl Parser {
 
     pub fn primary(&mut self) -> Result<Expr, ParseError> {
         if self.match_token_type(Vec::from([TokenType::True])) {
-            return Ok(Expr::Literal(Box::new(Literal::Bool(true))));
+            return Ok(Expr::Literal(Literal::Bool(true)));
         }
 
         if self.match_token_type(Vec::from([TokenType::False])) {
-            return Ok(Expr::Literal(Box::new(Literal::Bool(false))));
+            return Ok(Expr::Literal(Literal::Bool(false)));
         }
 
         if self.match_token_type(Vec::from([TokenType::Number, TokenType::String])) {
-            return Ok(Expr::Literal(Box::new(self.previous().literal.clone())));
+            return Ok(Expr::Literal(self.previous().literal.clone()));
         }
 
         if self.match_token_type(Vec::from([TokenType::LeftParen])) {
@@ -205,14 +254,17 @@ impl Parser {
         }
 
         if self.match_token_type(Vec::from([TokenType::Nil])) {
-            return Ok(Expr::Literal(Box::new(Literal::Null)));
+            return Ok(Expr::Literal(Literal::Null));
         }
 
         if self.match_token_type(Vec::from([TokenType::Identifier])) {
             return Ok(Expr::Variable(self.previous().clone()));
         }
 
-        return Err(ParseError {token: self.peek().clone(), message: "Unable to parse the provided expression".to_string()});
+        return Err(ParseError {
+            token: self.peek().clone(),
+            message: "Unable to parse the provided expression".to_string(),
+        });
     }
 
     pub fn match_token_type(&mut self, token_types: Vec<TokenType>) -> bool {
@@ -246,7 +298,10 @@ impl Parser {
         if self.check(token_type) {
             Ok(self.advance())
         } else {
-            Err(ParseError{token: self.peek().clone(), message: message.to_string()})
+            Err(ParseError {
+                token: self.peek().clone(),
+                message: message.to_string(),
+            })
         }
     }
 
