@@ -13,7 +13,8 @@ pub enum Expr {
 pub enum Stmt {
     Expression(Expr),
     Print(Expr),
-    Var(Token, Expr)
+    Var(Token, Expr),
+    Block(Vec<Stmt>)
 }
 
 pub trait Visitor<T> {
