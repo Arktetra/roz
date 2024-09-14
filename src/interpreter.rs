@@ -52,15 +52,15 @@ impl Interpreter {
         }
     }
 
-    fn visit_literal_expr(&mut self, literal: &Box<Literal>) -> Result<Literal, RuntimeError> {
-        Ok(*literal.clone())
+    fn visit_literal_expr(&mut self, literal: &Literal) -> Result<Literal, RuntimeError> {
+        Ok(literal.clone())
     }
 
     fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> Result<Literal, RuntimeError> {
         self.evaluate(expr)
     }
 
-    fn visit_unary_expr(&mut self, operator: &Box<Token>, expr: &Box<Expr>) -> Result<Literal, RuntimeError> {
+    fn visit_unary_expr(&mut self, operator: &Token, expr: &Expr) -> Result<Literal, RuntimeError> {
         let right = self.evaluate(expr)?;
 
         self.check_number_operand(operator, &right)?;
@@ -73,7 +73,19 @@ impl Interpreter {
         }
     }
 
-    fn visit_binary_expr(&mut self, left: &Box<Expr>, operator: &Box<Token>, right: &Box<Expr>) -> Result<Literal, RuntimeError> {
+    fn visit_logical_expr(&mut self, left: &Expr, operator: &Token, right: &Expr) -> Result<Literal, RuntimeError> {
+        let left = self.evaluate(left)?;
+
+        if operator.token_type == TokenType::And {
+            if !self.is_true(&left) { return Ok(left); }
+        } else {
+            if self.is_true(&left) { return Ok(left); }
+        }
+
+        self.evaluate(right)
+    }
+
+    fn visit_binary_expr(&mut self, left: &Expr, operator: &Token, right: &Expr) -> Result<Literal, RuntimeError> {
         let left = self.evaluate(left)?;
         let right = self.evaluate(right)?;
 
@@ -118,6 +130,45 @@ impl Interpreter {
 
     fn visit_variable_expr(&mut self, name: &Token) -> Result<Literal, RuntimeError> {
         self.environment.get(name.clone())
+    }
+
+    fn visit_expr_stmt(&mut self, expr: &Expr) -> Result<(), RuntimeError> {
+        self.evaluate(expr)?;
+        Ok(())
+    }
+
+    fn visit_print_stmt(&mut self, expr: &Expr) -> Result<(), RuntimeError> {
+        let value = self.evaluate(expr)?;
+        println!("{}", value.to_string());
+        Ok(())
+    }
+
+    fn visit_var_stmt(&mut self, name: &Token, initializer: &Expr) -> Result<(), RuntimeError> {
+        let mut value = Literal::Null;
+
+        if *initializer != Expr::Literal(Literal::Null) {
+            value = self.evaluate(initializer)?;
+        }
+
+        self.environment.define(name.lexeme.clone(), value);
+
+        Ok(())
+    }
+
+    fn visit_if_stmt(&mut self, condition: &Expr, then_stmt: &Stmt, else_stmt: &Stmt) -> Result<(), RuntimeError> {
+        let cond_eval_result = self.evaluate(condition)?;
+
+        if self.is_true(&cond_eval_result) {
+            self.execute(then_stmt)?;
+        } else if *else_stmt != Stmt::None {
+            self.execute(else_stmt)?;
+        }
+
+        Ok(())
+    }
+
+    fn visit_block_stmt(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
+        self.execute_block(&stmts, Environment::new(Some(self.environment.clone())))
     }
 
     fn check_number_operand(&self, operator: &Token, operand: &Literal) -> Result<(), RuntimeError> {
@@ -168,6 +219,9 @@ impl Visitor for Interpreter {
             Expr::Unary(operator, expr) => {
                 self.visit_unary_expr(operator, expr)
             }
+            Expr::Logical(lhs, operator, rhs) => {
+                self.visit_logical_expr(lhs, operator, rhs)
+            }
             Expr::Binary(lhs, operator, rhs ) => {
                 self.visit_binary_expr(lhs, operator, rhs)
             }
@@ -189,26 +243,21 @@ impl Visitor for Interpreter {
     fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Expression(expr) => {
-                self.evaluate(expr)?;
-                Ok(())
+                self.visit_expr_stmt(expr)
             }
             Stmt::Print(expr) => {
-                let value = self.evaluate(expr)?;
-                println!("{}", value.to_string());
-                Ok(())
+                self.visit_print_stmt(expr)
+            }
+            Stmt::If(condition, then_statement, else_statement) => {
+                self.visit_if_stmt(condition, then_statement, else_statement)
             }
             Stmt::Var(name, initializer) => {
-                let mut value = Literal::Null;
-
-                if *initializer != Expr::Literal(Box::new(Literal::Null)) {
-                    value = self.evaluate(initializer)?;
-                }
-
-                self.environment.define(name.lexeme.clone(), value);
-
-                Ok(())
+                self.visit_var_stmt(name, initializer)
             }
-            Stmt::Block(stmts) => self.execute_block(stmts, Environment::new(Some(self.environment.clone())))
+            Stmt::Block(stmts) => {
+                self.visit_block_stmt(stmts)
+            }
+            Stmt::None => Ok(())
         }
     }
 
