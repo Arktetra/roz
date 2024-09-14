@@ -2,17 +2,21 @@ use crate::{lexer::Token, literal::Literal};
 
 #[derive(PartialEq)]
 pub enum Expr {
-    Binary(Box<Expr>, Box<Token>, Box<Expr>),
-    Unary(Box<Token>, Box<Expr>),
+    Logical(Box<Expr>, Token, Box<Expr>),
+    Binary(Box<Expr>, Token, Box<Expr>),
+    Unary(Token, Box<Expr>),
     Grouping(Box<Expr>),
-    Literal(Box<Literal>),
+    Literal(Literal),
     Variable(Token),
     Assign(Token, Box<Expr>)
 }
 
+#[derive(PartialEq)]
 pub enum Stmt {
     Expression(Expr),
+    If(Expr, Box<Stmt>, Box<Stmt>),
     Print(Expr),
     Var(Token, Expr),
-    Block(Vec<Stmt>)
+    Block(Vec<Stmt>),
+    None
 }
