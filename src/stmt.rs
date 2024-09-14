@@ -16,8 +16,3 @@ pub enum Stmt {
     Var(Token, Expr),
     Block(Vec<Stmt>)
 }
-
-pub trait Visitor<T> {
-    fn visit_expr(&mut self, expr: &Expr) -> T;
-    fn walk_expr(&mut self, expr: &Expr) ->T;
-}
