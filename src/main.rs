@@ -4,6 +4,7 @@ use std::{
     process::ExitCode
 };
 
+pub mod environment;
 pub mod literal;
 pub mod lexer;
 pub mod parser;

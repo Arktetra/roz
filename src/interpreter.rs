@@ -1,4 +1,5 @@
 use crate::{
+    environment::Environment,
     lexer::{TokenType, Token}, 
     literal::Literal,
     stmt::{Stmt, Expr}
@@ -10,9 +11,15 @@ pub struct RuntimeError {
     pub message: String
 }
 
-pub struct Interpreter;
+pub struct Interpreter {
+    environment: Environment
+}
 
 impl Interpreter {
+    pub fn new() -> Self {
+        Interpreter { environment: Environment::new() }
+    }
+
     fn evaluate(&mut self, expr: &Expr) -> Result<Literal, RuntimeError> {
         self.walk_expr(expr)
     }
@@ -109,6 +116,10 @@ impl Interpreter {
         }
     }
 
+    fn visit_variable_expr(&mut self, name: &Token) -> Result<Literal, RuntimeError> {
+        self.environment.get(name.clone())
+    }
+
     fn check_number_operand(&self, operator: &Token, operand: &Literal) -> Result<(), RuntimeError> {
         if operand.is_double() {
             return Ok(())
@@ -148,6 +159,9 @@ impl Visitor for Interpreter {
             Expr::Binary(lhs, operator, rhs ) => {
                 self.visit_binary_expr(lhs, operator, rhs)
             }
+            Expr::Variable(name) => {
+                self.visit_variable_expr(name)
+            }
         }
     }
 
@@ -156,7 +170,8 @@ impl Visitor for Interpreter {
             Expr::Binary(_, _, _) => self.visit_expr(expr),
             Expr::Unary(_, _) => self.visit_expr(expr),
             Expr::Grouping(_) => self.visit_expr(expr),
-            Expr::Literal(_) => self.visit_expr(expr)
+            Expr::Literal(_) => self.visit_expr(expr),
+            Expr::Variable(_) => self.visit_expr(expr),
         }
     }
 
@@ -169,6 +184,17 @@ impl Visitor for Interpreter {
             Stmt::Print(expr) => {
                 let value = self.evaluate(expr)?;
                 println!("{}", value.to_string());
+                Ok(())
+            }
+            Stmt::Var(name, initializer) => {
+                let mut value = Literal::Null;
+
+                if *initializer != Expr::Literal(Box::new(Literal::Null)) {
+                    value = self.evaluate(initializer)?;
+                }
+
+                self.environment.define(name.lexeme.clone(), value);
+
                 Ok(())
             }
         }

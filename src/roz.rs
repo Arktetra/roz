@@ -58,7 +58,7 @@ pub fn run(input: &str) {
     lexer.scan_tokens();
 
     let mut parser = Parser::new(lexer.tokens);
-    let mut interpreter = Interpreter;
+    let mut interpreter = Interpreter::new();
 
     match parser.parse() {
         Ok(stmts) => {
