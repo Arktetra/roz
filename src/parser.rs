@@ -58,6 +58,10 @@ impl Parser {
             return self.print_statement();
         }
 
+        if self.match_token_type(Vec::from([TokenType::LeftBrace])) {
+            return self.block();
+        }
+
         return self.expression_statement();
     }
 
@@ -75,6 +79,18 @@ impl Parser {
         self.consume(TokenType::Semicolon, "';' expected.")?;
 
         return Ok(Stmt::Expression(expr));
+    }
+
+    pub fn block(&mut self) -> Result<Stmt, ParseError> {
+        let mut statements = Vec::new();
+
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            statements.push(self.declaration()?);
+        }
+
+        self.consume(TokenType::RightBrace, "Expected '}'.")?;
+
+        Ok(Stmt::Block(statements))
     }
 
     pub fn expression(&mut self) -> Result<Expr, ParseError> {
