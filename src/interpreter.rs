@@ -17,7 +17,7 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
-        Interpreter { environment: Environment::new() }
+        Interpreter { environment: Environment::new(None) }
     }
 
     fn evaluate(&mut self, expr: &Expr) -> Result<Literal, RuntimeError> {
@@ -135,6 +135,18 @@ impl Interpreter {
             return Err(RuntimeError{token: operator.clone(), message: "Expected both operands to be double.".to_string()});
         }
     }
+
+    fn execute_block(&mut self, stmts: &[Stmt], environment: Environment) -> Result<(), RuntimeError> {
+        let previous = self.environment.clone();
+
+        self.environment = environment;
+        for stmt in stmts {
+            self.execute(stmt)?;
+        }
+
+        self.environment = previous;
+        Ok(())
+    }
 }
 
 pub trait Visitor {
@@ -196,6 +208,7 @@ impl Visitor for Interpreter {
 
                 Ok(())
             }
+            Stmt::Block(stmts) => self.execute_block(stmts, Environment::new(Some(self.environment.clone())))
         }
     }
 

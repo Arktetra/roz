@@ -64,7 +64,6 @@ pub fn run(input: &str) {
         Ok(stmts) => {
             unsafe {
                 if HAD_ERROR {
-                    println!("ghello");
                     return
                 }
             }
