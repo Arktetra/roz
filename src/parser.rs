@@ -10,6 +10,7 @@ pub struct ParseError {
     pub message: String
 }
 
+#[derive(Clone)]
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
@@ -24,10 +25,32 @@ impl Parser {
         let mut statements = Vec::new();
 
         while !self.is_at_end() {
-            statements.push(self.statement()?);
+            statements.push(self.declaration()?);
         }
 
         Ok(statements)
+    }
+
+    pub fn declaration(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_token_type(Vec::from([TokenType::Let])) {
+            return self.var_declaration();
+        }
+
+        return self.statement();
+    }
+
+    pub fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
+        let name = self.consume(TokenType::Identifier, "Expected variable name")?.clone();
+
+        let mut initializer = Expr::Literal(Box::new(Literal::Null));
+        if self.match_token_type(Vec::from([TokenType::Equal])) {
+            initializer = self.expression()?;
+        }
+
+        
+        self.consume(TokenType::Semicolon, "Expected ';'")?;
+
+        return Ok(Stmt::Var(name, initializer));
     }
 
     pub fn statement(&mut self) -> Result<Stmt, ParseError> {
@@ -147,6 +170,10 @@ impl Parser {
 
         if self.match_token_type(Vec::from([TokenType::Nil])) {
             return Ok(Expr::Literal(Box::new(Literal::Null)));
+        }
+
+        if self.match_token_type(Vec::from([TokenType::Identifier])) {
+            return Ok(Expr::Variable(self.previous().clone()));
         }
 
         return Err(ParseError {token: self.peek().clone(), message: "Unable to parse the provided expression".to_string()});
