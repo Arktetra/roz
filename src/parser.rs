@@ -32,7 +32,7 @@ impl Parser {
     }
 
     pub fn declaration(&mut self) -> Result<Stmt, ParseError> {
-        if self.match_token_type(Vec::from([TokenType::Let])) {
+        if self.match_token_type(&[TokenType::Let]) {
             return self.var_declaration();
         }
 
@@ -45,7 +45,7 @@ impl Parser {
             .clone();
 
         let mut initializer = Expr::Literal(Literal::Null);
-        if self.match_token_type(Vec::from([TokenType::Equal])) {
+        if self.match_token_type(&[TokenType::Equal]) {
             initializer = self.expression()?;
         }
 
@@ -55,19 +55,19 @@ impl Parser {
     }
 
     pub fn statement(&mut self) -> Result<Stmt, ParseError> {
-        if self.match_token_type(Vec::from([TokenType::Print])) {
+        if self.match_token_type(&[TokenType::Print]) {
             return self.print_statement();
         }
 
-        if self.match_token_type(Vec::from([TokenType::LeftBrace])) {
+        if self.match_token_type(&[TokenType::LeftBrace]) {
             return self.block();
         }
 
-        if self.match_token_type(Vec::from([TokenType::If])) {
+        if self.match_token_type(&[TokenType::If]) {
             return self.if_statement();
         }
 
-        if self.match_token_type(Vec::from([TokenType::While])) {
+        if self.match_token_type(&[TokenType::While]) {
             return self.while_statement();
         }
 
@@ -98,7 +98,7 @@ impl Parser {
         let then_stmt = self.statement()?;
 
         let mut else_stmt = Stmt::None;
-        if self.match_token_type(Vec::from([TokenType::Else])) {
+        if self.match_token_type(&[TokenType::Else]) {
             else_stmt = self.statement()?;
         }
 
@@ -118,7 +118,7 @@ impl Parser {
     pub fn block(&mut self) -> Result<Stmt, ParseError> {
         let mut statements = Vec::new();
 
-        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+        while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
             statements.push(self.declaration()?);
         }
 
@@ -134,7 +134,7 @@ impl Parser {
     pub fn assignment(&mut self) -> Result<Expr, ParseError> {
         let expr = self.or()?;
 
-        if self.match_token_type(Vec::from([TokenType::Equal])) {
+        if self.match_token_type(&[TokenType::Equal]) {
             let equals = self.previous().clone();
             let value = self.assignment()?;
 
@@ -157,7 +157,7 @@ impl Parser {
     pub fn or(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.and()?;
 
-        while self.match_token_type(Vec::from([TokenType::Or])) {
+        while self.match_token_type(&[TokenType::Or]) {
             let operator = self.previous().clone();
             let right = self.and()?;
 
@@ -170,7 +170,7 @@ impl Parser {
     pub fn and(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.equality()?;
 
-        while self.match_token_type(Vec::from([TokenType::And])) {
+        while self.match_token_type(&[TokenType::And]) {
             let operator = self.previous().clone();
             let right = self.and()?;
 
@@ -183,7 +183,7 @@ impl Parser {
     pub fn equality(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.comparison()?;
 
-        while self.match_token_type(Vec::from([TokenType::BangEqual, TokenType::EqualEqual])) {
+        while self.match_token_type(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             let operator = self.previous().clone();
             let right = self.comparison()?;
 
@@ -196,12 +196,12 @@ impl Parser {
     pub fn comparison(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.term()?;
 
-        while self.match_token_type(Vec::from([
+        while self.match_token_type(&[
             TokenType::Greater,
             TokenType::GreaterEqual,
             TokenType::Less,
             TokenType::LessEqual,
-        ])) {
+        ]) {
             let operator = self.previous().clone();
             let right = self.term()?;
 
@@ -214,7 +214,7 @@ impl Parser {
     pub fn term(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.factor()?;
 
-        while self.match_token_type(Vec::from([TokenType::Plus, TokenType::Minus])) {
+        while self.match_token_type(&[TokenType::Plus, TokenType::Minus]) {
             let operator = self.previous().clone();
             let right = self.factor()?;
 
@@ -227,7 +227,7 @@ impl Parser {
     pub fn factor(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.unary()?;
 
-        while self.match_token_type(Vec::from([TokenType::Star, TokenType::Slash])) {
+        while self.match_token_type(&[TokenType::Star, TokenType::Slash]) {
             let operator = self.previous().clone();
             let right = self.unary()?;
 
@@ -238,7 +238,7 @@ impl Parser {
     }
 
     pub fn unary(&mut self) -> Result<Expr, ParseError> {
-        if self.match_token_type(Vec::from([TokenType::Bang, TokenType::Minus])) {
+        if self.match_token_type(&[TokenType::Bang, TokenType::Minus]) {
             let operator = self.previous().clone();
             let right = self.unary()?;
 
@@ -249,29 +249,29 @@ impl Parser {
     }
 
     pub fn primary(&mut self) -> Result<Expr, ParseError> {
-        if self.match_token_type(Vec::from([TokenType::True])) {
+        if self.match_token_type(&[TokenType::True]) {
             return Ok(Expr::Literal(Literal::Bool(true)));
         }
 
-        if self.match_token_type(Vec::from([TokenType::False])) {
+        if self.match_token_type(&[TokenType::False]) {
             return Ok(Expr::Literal(Literal::Bool(false)));
         }
 
-        if self.match_token_type(Vec::from([TokenType::Number, TokenType::String])) {
+        if self.match_token_type(&[TokenType::Number, TokenType::String]) {
             return Ok(Expr::Literal(self.previous().literal.clone()));
         }
 
-        if self.match_token_type(Vec::from([TokenType::LeftParen])) {
+        if self.match_token_type(&[TokenType::LeftParen]) {
             let expr = self.expression()?;
             self.consume(TokenType::RightParen, "Expected ')' after expression.")?;
             return Ok(Expr::Grouping(Box::new(expr)));
         }
 
-        if self.match_token_type(Vec::from([TokenType::Nil])) {
+        if self.match_token_type(&[TokenType::Nil]) {
             return Ok(Expr::Literal(Literal::Null));
         }
 
-        if self.match_token_type(Vec::from([TokenType::Identifier])) {
+        if self.match_token_type(&[TokenType::Identifier]) {
             return Ok(Expr::Variable(self.previous().clone()));
         }
 
@@ -281,7 +281,7 @@ impl Parser {
         });
     }
 
-    pub fn match_token_type(&mut self, token_types: Vec<TokenType>) -> bool {
+    pub fn match_token_type(&mut self, token_types: &[TokenType]) -> bool {
         for token_type in token_types {
             if self.check(token_type) {
                 self.advance();
@@ -292,12 +292,12 @@ impl Parser {
         return false;
     }
 
-    pub fn check(&self, token_type: TokenType) -> bool {
+    pub fn check(&self, token_type: &TokenType) -> bool {
         if self.is_at_end() {
             return false;
         }
 
-        self.peek().token_type == token_type
+        self.peek().token_type == *token_type
     }
 
     pub fn advance(&mut self) -> &Token {
@@ -309,7 +309,7 @@ impl Parser {
     }
 
     pub fn consume(&mut self, token_type: TokenType, message: &str) -> Result<&Token, ParseError> {
-        if self.check(token_type) {
+        if self.check(&token_type) {
             Ok(self.advance())
         } else {
             Err(ParseError {
