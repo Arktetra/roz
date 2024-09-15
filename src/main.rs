@@ -4,11 +4,14 @@ use std::{
     process::ExitCode
 };
 
+pub mod callable;
 pub mod environment;
+pub mod function;
 pub mod literal;
 pub mod lexer;
 pub mod parser;
 pub mod interpreter;
+pub mod native_function;
 pub mod stmt;
 pub mod roz;
 
