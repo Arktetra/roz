@@ -243,6 +243,9 @@ impl Visitor for Interpreter {
                 self.environment.assign(name.clone(), value.clone())?;
                 Ok(value)
             }
+            Expr::None => {
+                Ok(Literal::Null)
+            }
         }
     }
 
