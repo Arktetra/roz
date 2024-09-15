@@ -7,14 +7,30 @@ use crate::interpreter::RuntimeError;
 #[derive(Clone)]
 pub struct Environment {
     values: HashMap<String, Literal>,
-    enclosing: Box<Option<Environment>>
+    enclosing: Option<Box<Environment>>
 }
 
 impl Environment {
     pub fn new(enclosing: Option<Environment>) -> Self {
-        Environment { 
-            values: HashMap::new(),
-            enclosing: Box::new(enclosing)
+        if let Some(enclosing) = enclosing {
+            Environment {
+                values: HashMap::new(),
+                enclosing: Some(Box::new(enclosing))
+            }
+        } else {
+            Environment {
+                values: HashMap::new(),
+                enclosing: None
+            }
+        }
+    }
+
+    /// This function can be used to get the enclosing environment whose values may have been changed by the current environment statements.
+    pub fn get_enclosing_environment(&mut self) -> Option<Self> {
+        if let Some(enclosing) = self.enclosing.clone() {
+            Some(*enclosing)
+        } else {
+            None
         }
     }
 
@@ -26,7 +42,7 @@ impl Environment {
         if let Some(value) = self.values.get(&name.lexeme) {
             Ok(value.clone())
         } else {
-            match *self.enclosing.clone() {
+            match &self.enclosing {
                 Some(enclosing) => enclosing.get(name),
                 None => {
                     let message = format!("undefined variable '{}'", name.lexeme);
@@ -41,9 +57,10 @@ impl Environment {
             self.values.insert(name.lexeme, value);
             Ok(())
         } else {
-            match *self.enclosing.clone() {
+            match &mut self.enclosing {
                 Some(enclosing) => {
-                    self.values.insert(name.lexeme.clone(), enclosing.get(name)?);
+                    // self.values.insert(name.lexeme.clone(), enclosing.get(name)?);
+                    enclosing.values.insert(name.lexeme, value);
                     Ok(())
                 },
                 None => {
