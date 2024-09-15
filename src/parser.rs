@@ -71,6 +71,10 @@ impl Parser {
             return self.while_statement();
         }
 
+        if self.match_token_type(&[TokenType::For]) {
+            return self.for_statement();
+        }
+
         return self.expression_statement();
     }
 
@@ -113,6 +117,49 @@ impl Parser {
         let body = self.statement()?;
 
         Ok(Stmt::While(condition, Box::new(body)))
+    }
+
+    pub fn for_statement(&mut self) -> Result<Stmt, ParseError> {
+        self.consume(TokenType::LeftParen, "Expected '(' before expressions.")?;
+
+        let initializer;
+        if self.match_token_type(&[TokenType::Semicolon]) {
+            initializer = Stmt::None;
+        } else if self.match_token_type(&[TokenType::Let]) {
+            initializer = self.var_declaration()?;
+        } else {
+            initializer = self.expression_statement()?;
+        }
+
+        let mut condition = Expr::None;
+        if !self.check(&TokenType::Semicolon) {
+            condition = self.expression()?;
+        }
+        self.consume(TokenType::Semicolon, "Expected ';' after loop condition.")?;
+
+        let mut increment = Expr::None;
+        if !self.check(&TokenType::RightParen) {
+            increment = self.expression()?;
+        }
+        self.consume(TokenType::RightParen, "Expected ')' after for clauses.")?;
+
+        let mut body = self.statement()?;
+
+        if increment != Expr::None {
+            body = Stmt::Block(Vec::from([body, Stmt::Expression(increment)]));
+        }
+
+        if condition == Expr::None {
+            condition = Expr::Literal(Literal::Bool(true));
+        }
+
+        body = Stmt::While(condition, Box::new(body));
+
+        if initializer != Stmt::None {
+            body = Stmt::Block(Vec::from([initializer, body]));
+        }
+        
+        return Ok(body);
     }
 
     pub fn block(&mut self) -> Result<Stmt, ParseError> {
