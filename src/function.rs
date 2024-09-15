@@ -1,5 +1,5 @@
 use crate::{
-    callable::Callable, environment::Environment, interpreter::Interpreter, lexer::Token,
+    callable::Callable, environment::Environment, interpreter::{Interpreter, RuntimeException}, lexer::Token,
     literal::Literal, stmt::Stmt,
 };
 
@@ -29,15 +29,21 @@ impl Callable for Function {
         self.parameters.len()
     }
 
-    fn call(&self, interpreter: &mut Interpreter, arguments: Vec<Literal>) -> () {
+    fn call(&self, interpreter: &mut Interpreter, arguments: Vec<Literal>) -> Literal {
         let mut environment = Environment::new(Some(interpreter.globals.clone()));
 
         for i in 0..self.parameters.len() {
             environment.define(self.parameters[i].lexeme.clone(), arguments[i].clone());
         }
 
-        interpreter
-            .execute_block(self.body.get_block_body().unwrap(), environment)
-            .unwrap()
+        if let Err(exception) = interpreter
+            .execute_block(self.body.get_block_body().unwrap(), environment) {
+                match exception {
+                    RuntimeException::Return(value) => return value.value,
+                    RuntimeException::Error(_) => return Literal::Null
+                }
+            }
+
+        return Literal::Null;
     }
 }

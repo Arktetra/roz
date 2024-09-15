@@ -1,11 +1,11 @@
+use std::fs;
 use std::io::{self, Write};
 use std::process::ExitCode;
-use std::fs;
 
 use crate::{
+    interpreter::{Interpreter, RuntimeError, RuntimeException},
     lexer::{Lexer, Token, TokenType},
     parser::Parser,
-    interpreter::{Interpreter, RuntimeError}
 };
 
 static mut HAD_ERROR: bool = false;
@@ -34,20 +34,19 @@ pub fn run_prompt() {
 }
 
 pub fn run_file(filename: &str) -> ExitCode {
-    let filecontent = fs::read_to_string(filename)
-        .unwrap_or_else(|_| {
-            writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
-            String::new()
-        });
-    
+    let filecontent = fs::read_to_string(filename).unwrap_or_else(|_| {
+        writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
+        String::new()
+    });
+
     run(&filecontent);
-    
+
     unsafe {
         if HAD_ERROR {
             ExitCode::from(65)
         } else if HAD_RUNTIME_ERROR {
-            ExitCode::from(70)   
-        }else {
+            ExitCode::from(70)
+        } else {
             ExitCode::SUCCESS
         }
     }
@@ -64,15 +63,18 @@ pub fn run(input: &str) {
         Ok(stmts) => {
             unsafe {
                 if HAD_ERROR {
-                    return
+                    return;
                 }
             }
 
-            if let Err(runtime_err) = interpreter.interpret(&stmts) {
-                runtime_error(runtime_err);
+            if let Err(runtime_exception) = interpreter.interpret(&stmts) {
+                match runtime_exception {
+                    RuntimeException::Error(runtime_err) => runtime_error(runtime_err),
+                    RuntimeException::Return(_) => (),
+                }
             }
         }
-        Err(parse_err) => error(&parse_err.token, &parse_err.message)
+        Err(parse_err) => error(&parse_err.token, &parse_err.message),
     }
 }
 
@@ -89,7 +91,13 @@ pub fn error(token: &Token, message: &str) {
 }
 
 pub fn runtime_error(error: RuntimeError) {
-    writeln!(io::stderr(), "{}\n[line {}]", error.message, error.token.line).unwrap();
+    writeln!(
+        io::stderr(),
+        "{}\n[line {}]",
+        error.message,
+        error.token.line
+    )
+    .unwrap();
 
     unsafe {
         HAD_RUNTIME_ERROR = true;

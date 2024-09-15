@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use crate::{interpreter::RuntimeError, lexer::Token, literal::Literal};
+use crate::{
+    interpreter::{RuntimeError, RuntimeException},
+    lexer::Token,
+    literal::Literal,
+};
 
 #[derive(Debug, Clone)]
 pub struct Environment {
@@ -38,7 +42,7 @@ impl Environment {
     }
 
     /// Get the value bound to a name.
-    pub fn get(&self, name: Token) -> Result<Literal, RuntimeError> {
+    pub fn get(&self, name: Token) -> Result<Literal, RuntimeException> {
         if let Some(value) = self.values.get(&name.lexeme) {
             Ok(value.clone())
         } else {
@@ -46,17 +50,17 @@ impl Environment {
                 Some(enclosing) => enclosing.get(name),
                 None => {
                     let message = format!("undefined variable '{}'", name.lexeme);
-                    Err(RuntimeError {
+                    Err(RuntimeException::Error(RuntimeError {
                         token: name,
                         message,
-                    })
+                    }))
                 }
             }
         }
     }
 
     /// Assign new value to an existing name in the environment.
-    pub fn assign(&mut self, name: Token, value: Literal) -> Result<(), RuntimeError> {
+    pub fn assign(&mut self, name: Token, value: Literal) -> Result<(), RuntimeException> {
         if self.values.contains_key(&name.lexeme) {
             self.values.insert(name.lexeme, value);
             Ok(())
@@ -69,10 +73,10 @@ impl Environment {
                 }
                 None => {
                     let message = format!("undefined variable '{}'", name.lexeme);
-                    Err(RuntimeError {
+                    Err(RuntimeException::Error(RuntimeError {
                         token: name,
                         message,
-                    })
+                    }))
                 }
             }
         }

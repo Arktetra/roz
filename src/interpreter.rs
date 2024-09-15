@@ -4,8 +4,14 @@ use crate::{
     function::Function,
     lexer::{Token, TokenType},
     literal::Literal,
+    r#return::Return,
     stmt::{Expr, Stmt},
 };
+
+pub enum RuntimeException {
+    Error(RuntimeError),
+    Return(Return),
+}
 
 #[derive(Debug)]
 pub struct RuntimeError {
@@ -26,18 +32,18 @@ impl Interpreter {
         }
     }
 
-    fn evaluate(&mut self, expr: &Expr) -> Result<Literal, RuntimeError> {
+    fn evaluate(&mut self, expr: &Expr) -> Result<Literal, RuntimeException> {
         self.walk_expr(expr)
     }
 
-    pub fn interpret(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
+    pub fn interpret(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeException> {
         for stmt in stmts {
             self.execute(stmt)?;
         }
         Ok(())
     }
 
-    fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+    fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeException> {
         self.walk_stmt(stmt)?;
         Ok(())
     }
@@ -58,15 +64,19 @@ impl Interpreter {
         }
     }
 
-    fn visit_literal_expr(&mut self, literal: &Literal) -> Result<Literal, RuntimeError> {
+    fn visit_literal_expr(&mut self, literal: &Literal) -> Result<Literal, RuntimeException> {
         Ok(literal.clone())
     }
 
-    fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> Result<Literal, RuntimeError> {
+    fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> Result<Literal, RuntimeException> {
         self.evaluate(expr)
     }
 
-    fn visit_unary_expr(&mut self, operator: &Token, expr: &Expr) -> Result<Literal, RuntimeError> {
+    fn visit_unary_expr(
+        &mut self,
+        operator: &Token,
+        expr: &Expr,
+    ) -> Result<Literal, RuntimeException> {
         let right = self.evaluate(expr)?;
 
         self.check_number_operand(operator, &right)?;
@@ -84,7 +94,7 @@ impl Interpreter {
         callee: &Expr,
         paren: Token,
         arguments: &[Expr],
-    ) -> Result<Literal, RuntimeError> {
+    ) -> Result<Literal, RuntimeException> {
         let callee = self.evaluate(callee)?;
 
         let mut arguments_ = Vec::new();
@@ -94,23 +104,33 @@ impl Interpreter {
         }
 
         if callee.is_string() {
-            return Err(RuntimeError {
+            return Err(RuntimeException::Error(RuntimeError {
                 token: paren.clone(),
                 message: "Can only call functions and classes.".to_string(),
-            });
+            }));
         }
 
         match callee {
             Literal::Function(function) => {
                 if arguments_.len() != function.arity() {
-                    return Err(RuntimeError {token: paren, message: format!("Expected {} arguments but got {}.", function.arity(), arguments_.len())});
+                    return Err(RuntimeException::Error(RuntimeError {
+                        token: paren,
+                        message: format!(
+                            "Expected {} arguments but got {}.",
+                            function.arity(),
+                            arguments_.len()
+                        ),
+                    }));
                 }
 
-                self.environment.define(paren.lexeme, Literal::Function(function.clone()));
-                function.call(self, arguments_);
-                Ok(Literal::Null)
+                self.environment
+                    .define(paren.lexeme, Literal::Function(function.clone()));
+                return Ok(function.call(self, arguments_));
             }
-            _ => Err(RuntimeError{ token: paren, message: "Couldn't execute function.".to_string()})
+            _ => Err(RuntimeException::Error(RuntimeError {
+                token: paren,
+                message: "Couldn't execute function.".to_string(),
+            })),
         }
     }
 
@@ -119,7 +139,7 @@ impl Interpreter {
         left: &Expr,
         operator: &Token,
         right: &Expr,
-    ) -> Result<Literal, RuntimeError> {
+    ) -> Result<Literal, RuntimeException> {
         let left = self.evaluate(left)?;
 
         if operator.token_type == TokenType::And {
@@ -140,7 +160,7 @@ impl Interpreter {
         left: &Expr,
         operator: &Token,
         right: &Expr,
-    ) -> Result<Literal, RuntimeError> {
+    ) -> Result<Literal, RuntimeException> {
         let left = self.evaluate(left)?;
         let right = self.evaluate(right)?;
 
@@ -171,30 +191,29 @@ impl Interpreter {
         }
     }
 
-    fn visit_variable_expr(&mut self, name: &Token) -> Result<Literal, RuntimeError> {
+    fn visit_variable_expr(&mut self, name: &Token) -> Result<Literal, RuntimeException> {
         self.environment.get(name.clone())
     }
 
-    fn visit_expr_stmt(&mut self, expr: &Expr) -> Result<(), RuntimeError> {
+    fn visit_expr_stmt(&mut self, expr: &Expr) -> Result<(), RuntimeException> {
         self.evaluate(expr)?;
         Ok(())
     }
 
-    fn visit_print_stmt(&mut self, expr: &Expr) -> Result<(), RuntimeError> {
+    fn visit_print_stmt(&mut self, expr: &Expr) -> Result<(), RuntimeException> {
         let value = self.evaluate(expr)?;
         println!("{}", value.to_string());
         Ok(())
     }
 
-    fn visit_var_stmt(&mut self, name: &Token, initializer: &Expr) -> Result<(), RuntimeError> {
+    fn visit_var_stmt(&mut self, name: &Token, initializer: &Expr) -> Result<(), RuntimeException> {
         let mut value = Literal::Null;
 
         if *initializer != Expr::Literal(Literal::Null) {
             value = self.evaluate(initializer)?;
         }
 
-        self.environment
-            .define(name.lexeme.clone(), value);
+        self.environment.define(name.lexeme.clone(), value);
 
         Ok(())
     }
@@ -204,7 +223,7 @@ impl Interpreter {
         condition: &Expr,
         then_stmt: &Stmt,
         else_stmt: &Stmt,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeException> {
         let cond_eval_result = self.evaluate(condition)?;
 
         if self.is_true(&cond_eval_result) {
@@ -216,7 +235,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn visit_while_stmt(&mut self, condition: &Expr, body: &Stmt) -> Result<(), RuntimeError> {
+    fn visit_while_stmt(&mut self, condition: &Expr, body: &Stmt) -> Result<(), RuntimeException> {
         let mut cond_eval_result = self.evaluate(condition)?;
 
         while self.is_true(&cond_eval_result) {
@@ -227,31 +246,53 @@ impl Interpreter {
         Ok(())
     }
 
-    fn visit_block_stmt(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
+    fn visit_block_stmt(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeException> {
         let env = self.environment.clone();
         self.execute_block(&stmts, Environment::new(Some(env)))
     }
 
-    fn visit_function_stmt(&mut self, name: &Token, parameters: &[Token], body: Stmt) -> Result<(), RuntimeError> {
+    fn visit_function_stmt(
+        &mut self,
+        name: &Token,
+        parameters: &[Token],
+        body: Stmt,
+    ) -> Result<(), RuntimeException> {
         let function = Function::new(name.clone(), parameters, body);
 
-        self.environment.define(name.lexeme.clone(), Literal::Function(Box::new(function)));
+        self.environment
+            .define(name.lexeme.clone(), Literal::Function(Box::new(function)));
 
         Ok(())
+    }
+
+    fn visit_return_stmt(
+        &mut self,
+        _keyword: &Token,
+        value: &Expr,
+    ) -> Result<(), RuntimeException> {
+        let mut resulting_value = Literal::Null;
+
+        if *value != Expr::None {
+            resulting_value = self.evaluate(value)?;
+        }
+
+        Err(RuntimeException::Return(Return {
+            value: resulting_value,
+        }))
     }
 
     fn check_number_operand(
         &self,
         operator: &Token,
         operand: &Literal,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeException> {
         if operand.is_double() {
             return Ok(());
         } else {
-            return Err(RuntimeError {
+            return Err(RuntimeException::Error(RuntimeError {
                 token: operator.clone(),
                 message: "Expected the operand to be a double.".to_string(),
-            });
+            }));
         }
     }
 
@@ -260,14 +301,14 @@ impl Interpreter {
         left: &Literal,
         operator: &Token,
         right: &Literal,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeException> {
         if left.is_double() && right.is_double() {
             return Ok(());
         } else {
-            return Err(RuntimeError {
+            return Err(RuntimeException::Error(RuntimeError {
                 token: operator.clone(),
                 message: "Expected both operands to be double.".to_string(),
-            });
+            }));
         }
     }
 
@@ -275,7 +316,7 @@ impl Interpreter {
         &mut self,
         stmts: &[Stmt],
         environment: Environment,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeException> {
         self.environment = environment;
         for stmt in stmts {
             self.execute(stmt)?;
@@ -287,14 +328,14 @@ impl Interpreter {
 }
 
 pub trait Visitor {
-    fn visit_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError>;
-    fn walk_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError>;
-    fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError>;
-    fn walk_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError>;
+    fn visit_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeException>;
+    fn walk_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeException>;
+    fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeException>;
+    fn walk_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeException>;
 }
 
 impl Visitor for Interpreter {
-    fn visit_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError> {
+    fn visit_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeException> {
         match expr {
             Expr::Literal(ref literal) => self.visit_literal_expr(literal),
             Expr::Grouping(group) => self.visit_grouping_expr(group),
@@ -304,8 +345,7 @@ impl Visitor for Interpreter {
             Expr::Variable(name) => self.visit_variable_expr(name),
             Expr::Assign(name, rhs) => {
                 let value = self.evaluate(rhs)?;
-                self.environment
-                    .assign(name.clone(), value.clone())?;
+                self.environment.assign(name.clone(), value.clone())?;
                 Ok(value)
             }
             Expr::Call(callee, paren, arguments) => {
@@ -315,11 +355,11 @@ impl Visitor for Interpreter {
         }
     }
 
-    fn walk_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeError> {
+    fn walk_expr(&mut self, expr: &Expr) -> Result<Literal, RuntimeException> {
         self.visit_expr(expr)
     }
 
-    fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+    fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeException> {
         match stmt {
             Stmt::Expression(expr) => self.visit_expr_stmt(expr),
             Stmt::Print(expr) => self.visit_print_stmt(expr),
@@ -329,12 +369,15 @@ impl Visitor for Interpreter {
             Stmt::While(condition, body) => self.visit_while_stmt(condition, body),
             Stmt::Var(name, initializer) => self.visit_var_stmt(name, initializer),
             Stmt::Block(stmts) => self.visit_block_stmt(stmts),
-            Stmt::Function(name, parameters, body) => self.visit_function_stmt(name, parameters, *body.clone()),
+            Stmt::Function(name, parameters, body) => {
+                self.visit_function_stmt(name, parameters, *body.clone())
+            }
+            Stmt::Return(keyword, value) => self.visit_return_stmt(keyword, value),
             Stmt::None => Ok(()),
         }
     }
 
-    fn walk_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+    fn walk_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeException> {
         self.visit_stmt(stmt)?;
         Ok(())
     }
