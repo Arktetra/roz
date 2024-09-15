@@ -1,11 +1,14 @@
 use std::ops;
 use std::cmp::Ordering;
 
+use crate::function::Function;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     Number(f32),
     String(String),
     Bool(bool),
+    Function(Box<Function>),
     Null
 }
 
@@ -21,6 +24,7 @@ impl Literal {
             }
             Self::String(x) => x.to_string(),
             Self::Bool(x) => x.to_string(),
+            Self::Function(func) => format!("<fn {}>", func.name()),  
             Self::Null => "null".to_string()
         }
     }
@@ -30,6 +34,7 @@ impl Literal {
             Self::Number(_) => "number".to_string(),
             Self::String(_) => "string".to_string(),
             Self::Bool(_) => "bool".to_string(),
+            Self::Function(func) => format!("<fn {}>", func.name()),
             Self::Null => "null".to_string(),
         }
     }
@@ -96,6 +101,7 @@ impl ops::Neg for Literal {
             Literal::Number(x) => Ok(Literal::Number(-x)),
             Literal::Bool(x) => Ok(Literal::Bool(!x)),
             Literal::String(_) => Err("Cannot negate a string.".to_string()),
+            Literal::Function(_) => Err("Cannot negate a function.".to_string()),
             Literal::Null => Err("Cannot negate a nil.".to_string())
         }
     }
