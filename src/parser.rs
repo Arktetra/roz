@@ -67,6 +67,10 @@ impl Parser {
             return self.if_statement();
         }
 
+        if self.match_token_type(Vec::from([TokenType::While])) {
+            return self.while_statement();
+        }
+
         return self.expression_statement();
     }
 
@@ -87,9 +91,9 @@ impl Parser {
     }
 
     pub fn if_statement(&mut self) -> Result<Stmt, ParseError> {
-        self.consume(TokenType::LeftParen, "Expected '('.")?;
+        self.consume(TokenType::LeftParen, "Expected '(' before expression.")?;
         let expr = self.expression()?;
-        self.consume(TokenType::RightParen, "Expected ')'.")?;
+        self.consume(TokenType::RightParen, "Expected ')' after expression.")?;
 
         let then_stmt = self.statement()?;
 
@@ -99,6 +103,16 @@ impl Parser {
         }
 
         Ok(Stmt::If(expr, Box::new(then_stmt), Box::new(else_stmt)))
+    }
+
+    pub fn while_statement(&mut self) -> Result<Stmt, ParseError> {
+        self.consume(TokenType::LeftParen, "Expected '(' before expression.")?;
+        let condition = self.expression()?;
+        self.consume(TokenType::RightParen, "Expected ')' after expression.")?;
+
+        let body = self.statement()?;
+
+        Ok(Stmt::While(condition, Box::new(body)))
     }
 
     pub fn block(&mut self) -> Result<Stmt, ParseError> {
