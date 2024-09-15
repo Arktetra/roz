@@ -167,8 +167,20 @@ impl Interpreter {
         Ok(())
     }
 
+    fn visit_while_stmt(&mut self, condition: &Expr, body: &Stmt) -> Result<(), RuntimeError> {
+        let mut cond_eval_result = self.evaluate(condition)?;
+
+        while self.is_true(&cond_eval_result) {
+            self.execute(body)?;
+            cond_eval_result = self.evaluate(condition)?;
+        }
+
+        Ok(())
+    }
+
     fn visit_block_stmt(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
-        self.execute_block(&stmts, Environment::new(Some(self.environment.clone())))
+        let env = self.environment.clone();
+        self.execute_block(&stmts, Environment::new(Some(env)))
     }
 
     fn check_number_operand(&self, operator: &Token, operand: &Literal) -> Result<(), RuntimeError> {
@@ -188,14 +200,12 @@ impl Interpreter {
     }
 
     fn execute_block(&mut self, stmts: &[Stmt], environment: Environment) -> Result<(), RuntimeError> {
-        let previous = self.environment.clone();
-
         self.environment = environment;
         for stmt in stmts {
             self.execute(stmt)?;
         }
 
-        self.environment = previous;
+        self.environment = self.environment.get_enclosing_environment().unwrap();
         Ok(())
     }
 }
@@ -250,6 +260,9 @@ impl Visitor for Interpreter {
             }
             Stmt::If(condition, then_statement, else_statement) => {
                 self.visit_if_stmt(condition, then_statement, else_statement)
+            }
+            Stmt::While(condition, body) => {
+                self.visit_while_stmt(condition, body)
             }
             Stmt::Var(name, initializer) => {
                 self.visit_var_stmt(name, initializer)
