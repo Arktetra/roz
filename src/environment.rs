@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
-use crate::lexer::Token;
-use crate::literal::Literal;
-use crate::interpreter::RuntimeError;
+use crate::{interpreter::RuntimeError, lexer::Token, literal::Literal};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Environment {
     values: HashMap<String, Literal>,
-    enclosing: Option<Box<Environment>>
+    enclosing: Option<Box<Environment>>,
 }
 
 impl Environment {
@@ -15,12 +13,12 @@ impl Environment {
         if let Some(enclosing) = enclosing {
             Environment {
                 values: HashMap::new(),
-                enclosing: Some(Box::new(enclosing))
+                enclosing: Some(Box::new(enclosing)),
             }
         } else {
             Environment {
                 values: HashMap::new(),
-                enclosing: None
+                enclosing: None,
             }
         }
     }
@@ -34,10 +32,12 @@ impl Environment {
         }
     }
 
+    /// Create a binding of a name with a value.
     pub fn define(&mut self, name: String, value: Literal) {
         self.values.insert(name, value);
     }
 
+    /// Get the value bound to a name.
     pub fn get(&self, name: Token) -> Result<Literal, RuntimeError> {
         if let Some(value) = self.values.get(&name.lexeme) {
             Ok(value.clone())
@@ -46,12 +46,16 @@ impl Environment {
                 Some(enclosing) => enclosing.get(name),
                 None => {
                     let message = format!("undefined variable '{}'", name.lexeme);
-                    Err(RuntimeError{token: name, message: message})
+                    Err(RuntimeError {
+                        token: name,
+                        message,
+                    })
                 }
             }
         }
     }
 
+    /// Assign new value to an existing name in the environment.
     pub fn assign(&mut self, name: Token, value: Literal) -> Result<(), RuntimeError> {
         if self.values.contains_key(&name.lexeme) {
             self.values.insert(name.lexeme, value);
@@ -62,10 +66,13 @@ impl Environment {
                     // self.values.insert(name.lexeme.clone(), enclosing.get(name)?);
                     enclosing.values.insert(name.lexeme, value);
                     Ok(())
-                },
+                }
                 None => {
                     let message = format!("undefined variable '{}'", name.lexeme);
-                    Err(RuntimeError{ token: name, message })
+                    Err(RuntimeError {
+                        token: name,
+                        message,
+                    })
                 }
             }
         }
