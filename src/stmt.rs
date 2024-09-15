@@ -15,6 +15,7 @@ pub enum Expr {
 pub enum Stmt {
     Expression(Expr),
     If(Expr, Box<Stmt>, Box<Stmt>),
+    While(Expr, Box<Stmt>),
     Print(Expr),
     Var(Token, Expr),
     Block(Vec<Stmt>),
