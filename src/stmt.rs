@@ -19,6 +19,7 @@ pub enum Stmt {
     If(Expr, Box<Stmt>, Box<Stmt>),         // condition, then branch, else branch
     While(Expr, Box<Stmt>),                 // condition, body
     Function(Token, Vec<Token>, Box<Stmt>), // name, params, body
+    Return(Token, Expr),                    // keyword, value
     Print(Expr),                            // expression
     Var(Token, Expr),                       // name, initializer
     Block(Vec<Stmt>),                       // list of statement
