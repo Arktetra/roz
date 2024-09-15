@@ -119,7 +119,24 @@ impl Parser {
             return self.for_statement();
         }
 
+        if self.match_token_type(&[TokenType::Return]) {
+            return self.return_statement();
+        }
+
         return self.expression_statement();
+    }
+
+    pub fn return_statement(&mut self) -> Result<Stmt, ParseError> {
+        let keyword = self.previous().clone();
+
+        let mut value = Expr::None;
+        if !self.check(&TokenType::Semicolon) {
+            value = self.expression()?;
+        }
+
+        self.consume(TokenType::Semicolon, "Expected ';' after return value.")?;
+
+        Ok(Stmt::Return(keyword, value))
     }
 
     pub fn print_statement(&mut self) -> Result<Stmt, ParseError> {
