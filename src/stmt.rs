@@ -8,7 +8,8 @@ pub enum Expr {
     Grouping(Box<Expr>),
     Literal(Literal),
     Variable(Token),
-    Assign(Token, Box<Expr>)
+    Assign(Token, Box<Expr>),
+    None
 }
 
 #[derive(PartialEq)]
