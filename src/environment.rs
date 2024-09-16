@@ -8,7 +8,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct Environment {
-    values: HashMap<String, Literal>,
+    pub values: HashMap<String, Literal>,
     enclosing: Option<Box<Environment>>,
 }
 
@@ -68,7 +68,8 @@ impl Environment {
             match &mut self.enclosing {
                 Some(enclosing) => {
                     // self.values.insert(name.lexeme.clone(), enclosing.get(name)?);
-                    enclosing.values.insert(name.lexeme, value);
+                    // enclosing.values.insert(name.lexeme, value);
+                    enclosing.assign(name, value)?;
                     Ok(())
                 }
                 None => {
@@ -79,6 +80,21 @@ impl Environment {
                     }))
                 }
             }
+        }
+    }
+
+    pub fn display(&self) {
+        for (string, literal) in self.values.clone() {
+            println!("{} => {}", string, literal.to_string());
+        }
+
+        println!("___________________________");
+
+        match &self.enclosing {
+            Some(enclosing) => {
+                enclosing.display();
+            }
+            None => ()
         }
     }
 }
