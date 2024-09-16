@@ -8,6 +8,7 @@ use crate::{
     stmt::{Expr, Stmt},
 };
 
+#[derive(Debug)]
 pub enum RuntimeException {
     Error(RuntimeError),
     Return(Return),
@@ -21,7 +22,7 @@ pub struct RuntimeError {
 
 pub struct Interpreter {
     pub globals: Environment,
-    environment: Environment,
+    pub environment: Environment,
 }
 
 impl Interpreter {
@@ -125,7 +126,8 @@ impl Interpreter {
 
                 self.environment
                     .define(paren.lexeme, Literal::Function(function.clone()));
-                return Ok(function.call(self, arguments_));
+
+                Ok(function.call(self, arguments_))
             }
             _ => Err(RuntimeException::Error(RuntimeError {
                 token: paren,

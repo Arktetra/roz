@@ -30,20 +30,25 @@ impl Callable for Function {
     }
 
     fn call(&self, interpreter: &mut Interpreter, arguments: Vec<Literal>) -> Literal {
-        let mut environment = Environment::new(Some(interpreter.globals.clone()));
+        let mut environment = Environment::new(Some(interpreter.environment.clone()));
 
+        
         for i in 0..self.parameters.len() {
             environment.define(self.parameters[i].lexeme.clone(), arguments[i].clone());
         }
+        
+        let result = interpreter.execute_block(
+            self.body.get_block_body().unwrap(), 
+            environment.clone()
+        );
 
-        if let Err(exception) = interpreter
-            .execute_block(self.body.get_block_body().unwrap(), environment) {
-                match exception {
-                    RuntimeException::Return(value) => return value.value,
-                    RuntimeException::Error(_) => return Literal::Null
-                }
-            }
+        match result {
+            Err(RuntimeException::Return(value)) => {
+                interpreter.environment = environment.get_enclosing_environment().unwrap();
 
-        return Literal::Null;
+                value.value
+            },
+            _ => Literal::Null,
+        }
     }
 }
